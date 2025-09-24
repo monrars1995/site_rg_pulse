@@ -1,17 +1,27 @@
 // Vercel Serverless Function para o backend
-const express = require('express');
-const cors = require('cors');
+const express = require('express');const cors = require('cors');
 
 // Configurar dotenv para carregar variáveis de ambiente
 require('dotenv').config();
 
+console.log('🚀 Iniciando função serverless...');
+console.log('📍 NODE_ENV:', process.env.NODE_ENV);
+console.log('📍 SUPABASE_URL:', process.env.SUPABASE_URL ? 'configurado' : 'não configurado');
+
 // Importar todos os controladores e serviços
-const BlogController = require('../server/BlogController');
-const AdminController = require('../server/AdminController');
-const SupabaseAuthController = require('../server/SupabaseAuthController');
-const SchedulerController = require('../server/SchedulerController');
-const SEOController = require('../server/SEOController');
-const diagnosticLeadsRoutes = require('../server/routes/diagnosticLeads');
+let BlogController, AdminController, SupabaseAuthController, SchedulerController, SEOController, diagnosticLeadsRoutes;
+
+try {
+    BlogController = require('../server/BlogController');
+    AdminController = require('../server/AdminController');
+    SupabaseAuthController = require('../server/SupabaseAuthController');
+    SchedulerController = require('../server/SchedulerController');
+    SEOController = require('../server/SEOController');
+    diagnosticLeadsRoutes = require('../server/routes/diagnosticLeads');
+    console.log('✅ Todos os controladores importados com sucesso');
+} catch (error) {
+    console.error('❌ Erro ao importar controladores:', error);
+}
 
 const app = express();
 
@@ -28,10 +38,13 @@ const allowedOrigins = [
 
 const corsOptions = { 
     origin: function (origin, callback) {
+        console.log(`🌐 CORS check para origem: ${origin || 'sem origem'}`);
+        
         // Permite requisições sem origin (ex: mobile apps, Postman)
         if (!origin) return callback(null, true);
         
         if (allowedOrigins.indexOf(origin) !== -1) {
+            console.log(`✅ CORS permitido para: ${origin}`);
             callback(null, true);
         } else {
             console.log(`❌ CORS bloqueado para origem: ${origin}`);
@@ -40,10 +53,23 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    optionsSuccessStatus: 200 // Para suportar navegadores legados
 };
 
+// Aplicar CORS primeiro
 app.use(cors(corsOptions));
+
+// Handler explícito para OPTIONS (preflight requests)
+app.options('*', (req, res) => {
+    console.log(`🔄 OPTIONS request para: ${req.path} de origem: ${req.get('origin')}`);
+    res.header('Access-Control-Allow-Origin', req.get('origin'));
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.status(200).end();
+});
+
 app.use(express.json());
 
 // Middleware para log de requisições
@@ -63,6 +89,7 @@ app.use((err, req, res, next) => {
 
 // Health check - removido prefixo /api pois já está na rota
 app.get('/health', (req, res) => {
+    console.log('🏥 Health check solicitado');
     res.json({ 
         status: 'ok', 
         timestamp: new Date().toISOString(),
@@ -171,6 +198,19 @@ app.post('/v1/a2a/:agentId', async (req, res) => {
     // Implementação da rota A2A se necessária
     res.status(501).json({ error: 'A2A endpoint not implemented in serverless environment' });
 });
+
+// Catch-all para debug
+app.use('*', (req, res) => {
+    console.log(`❓ Rota não encontrada: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ 
+        error: 'Rota não encontrada',
+        method: req.method,
+        path: req.originalUrl,
+        message: 'Esta rota não existe na API'
+    });
+});
+
+console.log('✅ Função serverless configurada com sucesso');
 
 // Export para Vercel
 module.exports = app;
