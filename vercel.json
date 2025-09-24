@@ -38,6 +38,8 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "VITE_BACKEND_BASE_API_URL": "https://site-rg-pulse.vercel.app",
+    "VITE_BACKEND_CHAT_API_URL": "https://site-rg-pulse.vercel.app/api/v1/chat"
   }
 }

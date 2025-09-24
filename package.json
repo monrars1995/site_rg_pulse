@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node server/server.js",
-    "dev": "vite",
+    "dev": "vite --mode development",
     "dev:server": "nodemon server/server.js",
-    "build": "vite build",
+    "build": "vite build --mode production",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"
