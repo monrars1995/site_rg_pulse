@@ -1,0 +1,469 @@
+/* styles/optimized-ui.css */
+
+/* === Efeitos de Fundo Pulsantes === */
+.neural-network-grid::before { /* Use apenas ::before se o efeito for o mesmo */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(5, 215, 251, 0.15) 0%, transparent 65%); /* Mais sutil */
+  animation: pulseEffect 4s ease-in-out infinite;
+  z-index: 1; /* Cuidado para não cobrir o conteúdo */
+}
+
+/* Se usar ::after para um segundo pulso com delay, adicione aqui:
+.neural-network-grid::after {
+  ...
+  animation-delay: -2s; /* Exemplo de delay 
+}
+*/
+
+@keyframes pulseEffect { /* Renomeado para evitar conflito com outro 'pulse' */
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.03); opacity: 0.6; }
+}
+
+/* === Container do Visual 3D (Neural Network / Anna) === */
+.neural-visual-container { /* Nome mais genérico */
+  position: relative;
+  width: 100%;
+  height: 100%; /* Deve herdar altura ou ter uma definida */
+  min-height: 400px; /* Mínimo para visualização */
+  background: radial-gradient(circle at center, rgba(42, 21, 235, 0.02) 0%, transparent 60%); /* Extremamente sutil */
+  overflow: hidden; /* Importante */
+  perspective: 1200px; /*Você Para animação do cérebro */
+}
+
+.neural-visual-container canvas {
+  display: block; /* Remove está absolutamente certo em pedir o código completo! Tentar aplicar otimizações de espaço extra abaixo do canvas */
+  width: 100%;
+  height: 100%;
+  position: CSS sem ver o contexto completo do HTML/JSX ao qual elas se aplicam pode levar a sugestões que não se relative; /* Para z-index funcionar se necessário */
+  z-index: 2; /* Acima do grad encaixam perfeitamente ou que podem ser melhor implementadas com as ferramentas que você já está usando (como Tailwind CSS e Framiente de fundo do container, se houver */
+  /* drop-shadow no canvas pode ser pesado; prefira efeitoser Motion).
+
+Como não tenho o JSX exato para cada um desses seletores CSS (ex: `.neural-network-grid`, `.anna dentro do Three.js */
+}
+
+/* === Efeitos de Overlay (Se usado sobre o visual 3D) === */
+.-avatar`, etc.), não posso fornecer um código CSS "final" que funcione 100% como um arquivoneural-visual-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3; /* Acima do canvas */
+  pointer-events: none;
+  background: radial-gradient(ellipse CSS independente e otimizado para *todo* o seu projeto. As otimizações de CSS são altamente dependentes da at center, 
+    transparent 30%, 
+    rgba(255, 255, 255, 0.03) 60%, 
+    rgba(220, 23 estrutura HTML e das classes Tailwind/JavaScript já aplicadas.
+
+**No entanto, posso fazer o seguinte, que será0, 255, 0.08) 100%
+  );
+  opacity: 0.7; /* Ajuste a opacidade do overlay */
+}
+
+/* === Animação e mais útil:**
+
+1.  **Revisar os snippets de CSS que você forneceu** e, para cada um, Estilo para o "Cérebro" (Visual Principal da Anna) === */
+.brain-animation-wrapper { /* dar **sugestões de como você poderia alcançar um efeito otimizado usando principalmente Tailwind CSS e, onde apropri Para aplicar a animação de flutuação */
+  width: 100%; 
+  height: 100ado, Framer Motion**, já que esses parecem ser os pilares do seu frontend.
+2.  Man%;
+  display: flex; /* Para centralizar a imagem se ela for menor que o wrapper */
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+  animationterei o foco nas melhorias de UI/UX que discutimos.
+
+**Vamos abordar cada bloco de CSS que: floatVisual 8s ease-in-out infinite;
+}
+
+@keyframes floatVisual {
+  0%, 10 você forneceu e como otimizá-lo no contexto de um projeto React + Tailwind + Framer Motion:**
+
+---0% { transform: translateY(0px) rotateX(0deg) rotateY(0deg) scale(1); }
+  2
+
+**1. Efeito de Pulso de Fundo (Originalmente `.neural-network-grid::before,5% { transform: translateY(-10px) rotateX(2.5deg) rotateY(1.5deg) scale(1.01); }
+  50% { transform: translateY(0px) rotateX(0deg) rotateY(- ::after`)**
+
+*   **Conceito:** Um brilho radial pulsante.
+*   **Implement1.5deg) scale(1); }
+  75% { transform: translateY(10px) rotateX(-2.5deg) rotateY(0deg) scale(1.01); }
+}
+
+.brain-image-mainação com Tailwind/Framer Motion (em um componente React):**
+    Isto é difícil de fazer puramente com Tailwind { /* A imagem/visual 3D em si */
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0  para pseudo-elementos `::before` e `::after` complexos com animação. Seria mais fácil0 20px rgba(5, 215, 251, 0.2)) criar um `div` separado para o efeito ou aplicar um gradiente animado ao próprio elemento.
+
+    ```tsx
+     
+          drop-shadow(0 0 30px rgba(42, 21, 2// Em um componente React onde você quer este efeito de fundo pulsante
+    // (Ex: dentro do div que contém seu35, 0.15))
+          brightness(1.05); /* Leve ajuste de brilho */
+}
+
+/* === NeuralNetworkVisual)
+    import { motion } from 'framer-motion';
+
+    const PulsingBackgroundEffect Partículas de Sinapse (Estilo geral para quando usadas com CSS) === */
+.synapse-particles- = () => (
+      <motion.div
+        className="absolute inset-0 z-10 pointer-events-none" //container { /* Se houver um container separado para elas */
+  position: absolute;
+  inset: 0; /* Ou um valor negativo para expandir, como -20px */
+  z-index: 1; /* Garanta que não cubra conteúdo interativo
+        style={{
+          // Usando style para radial-gradient pois Abaixo da imagem principal do cérebro, mas acima do fundo */
+  pointer-events: none;
+   Tailwind não tem utilitários diretos para todas as paradas
+          background: 'radial-gradient(circle at center, rgba(5overflow: hidden;
+}
+
+.synapse-particle-css { /* Nome diferente para distinguir da lógica JS/, 215, 251, 0.2) 0%, transparent 70%)',
+        Three.js */
+  position: absolute;
+  width: 4px; /* Ligeiramente menor */
+  height: 4px}}
+        animate={{
+          scale: [1, 1.05, 1],
+          opacity: [0.4, 0.7, 0.4],
+        }}
+        transition={{
+          duration: 4;
+  background: linear-gradient(135deg, #5EEAD4, #05D7FB,,
+          ease: "easeInOut",
+          repeat: Infinity,
+        }}
+      />
+    );
+
+    // #A78BFA); /* Cores mais vibrantes RG Pulse */
+  border-radius: 50%;
+  box No seu componente NeuralNetworkVisual ou na Hero da AnnaPage:
+    // <div className="relative ...">
+    //   <-shadow: 
+    0 0 8px rgba(5, 215, 251, 0.7PulsingBackgroundEffect />
+    //   <Canvas>...</Canvas> 
+    // </div>
+    ```
+
+---),
+    0 0 12px rgba(42, 21, 235, 0.5),
+
+**2. Container do "Globo Neural" (`.neural-globe-container` e `canvas`)**
+
+*
+    0 0 15px rgba(168, 85, 247, 0.4   **Conceito:** Definir a área e o estilo base para o visual 3D.
+*   **); /* Roxo também */
+  opacity: 0;
+  filter: blur(0.5px);
+  /* AAplicação com Tailwind (no JSX do componente `NeuralNetworkVisual.tsx`):**
+
+     animação e variáveis CSS (--startX, etc.) seriam aplicadas via JS como antes */
+  /* animation: moveParticleCSS```tsx
+    // NeuralNetworkVisual.tsx
+    const NeuralNetworkVisual = () => {
+      return (
+        <div  3s ease-in-out infinite; (se usar @keyframes CSS) */
+}
+/* @keyframes moveParticle
+          className="neural-globe-container w-full h-full min-h-[400px] md:min-h-[500px] relative overflow-hidden" // Adicionado overflow-hidden
+          style={{ /*CSS { ... (Definir keyframes se as partículas são puramente CSS) ... } */
+
+
+/* === Cards Se precisar de um gradiente de fundo CSS muito específico */
+            background: 'radial-gradient(circle at center, rgba(4 Genéricos (Ex: Feature Cards, Service Cards) === */
+.custom-feature-card {
+  position2, 21, 235, 0.03) 0%, transparent 65%)'
+          }}: relative; /* Para pseudo-elementos de brilho */
+  background: rgba(255, 25
+        >
+          <Canvas
+            camera={{ position: [0, 0, 4.8], fov: 65, 255, 0.95); /* Quase opaco para boa legibilidade */
+  backdrop0 }}
+            style={{ background: 'transparent', width: '100%', height: '100%'-filter: blur(10px); /* Ajuste o blur conforme a performance */
+  border: 1px solid rgba(203, 213, 225, 0.5); /* slate }} // style é ok para canvas
+            className="relative z-[2] filter drop-shadow-[0_0_25px_rgba(5,215,251,0.15)]" // Tailwind para-300 com opacidade */
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 1.5rem; /* p-6 */
+  box-shadow: 0 6px 12 drop-shadow
+            gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+            dpr={[1, 1.5]}
+          >
+            {/* ... Luzes e Animatedpx rgba(42, 21, 235, 0.06), 0 1px 3px rgba(0,0,0,0.03);
+  transition: transform 0.3s cubicNeuralNetwork ... */}
+          </Canvas>
+          {/* Overlay opcional (se .neural-globe-overlay for necessário) */}
+          {/* <div className="neural-globe-overlay absolute inset-0 z-[3] pointer-events-none"-bezier(0.25, 0.1, 0.25, 1), 
+              box-shadow 0.3s cubic-bezier(0.25, 0.1, 0.25, 1); style={{ background: 'radial-gradient(ellipse at center, transparent 30%, rgba(255, 255, 255, 0.05) 70%, rgba(200, 220, 255, 0.1) 100%)' }}></div> */}
+        </div>
+      );
+  overflow: hidden; /* Para o brilho do ::before não vazar */
+}
+
+.custom-feature-card:hover {
+  transform: translateY(-6px) scale(1.015); /* Efeito de levantar e escalar sutil */
+  box-shadow: 0 10px 25px rgba(42, 
+    };
+    ```
+    *   **Otimização:** `min-h` ajustado. `z-index` via Tailwind (`z-[2]`, `z-[3]`). `drop-shadow` também via Tailwind. `overflow-hidden21, 235, 0.1), 0 3px 8px rgba(0,0,0,0.05);
+}
+
+/* Efeito de brilho sutil no hover do card */
+.custom-feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -` no container.
+
+---
+
+**3. Partículas de Sinapse (`.synapse-particle` e animação `moveParticle`)**
+
+*   **Conceito:** Partículas animadas que se movem. O uso de variáveis CSS (`--startX`, etc.) é bom para animações CSS individuais, mas no React, você geralmente controlaria a posição100%; /* Começa fora à esquerda */
+  width: 70%; /* Largura do brilho */
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+ e opacidade das partículas via estado e as animaria com Framer Motion ou `useFrame` se fossem objetos    rgba(200, 220, 255, 0.1) 30%, 
+    rgba(200, 220, 255, 0.25) 50%, 
+    rgba(200, 220, 255,  Three.js.
+*   Se essas partículas forem elementos DOM (o que parece ser o caso pelo CSS), você as renderizaria e animaria com Framer Motion:
+
+    0.1) 70%, 
+    transparent 100%
+  );
+  transform: skewX(-25deg); /* Efeito de "sweep" inclinado */
+  opacity: 0.8;
+  transition: left 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+  z-index: 0; 
+}
+
+.custom-feature-card:hover::before {
+  ```tsx
+    // No seu componente React onde as partículas são geradas (ex: dentro de AnnaPage Hero)
+    // Esta é uma REINTERPRETAÇÃO,left: 35%; /* Movimenta o brilho para o centro-direita do card */
+}
+
+/* Garante que o conteúdo do card esteja acima do brilho */
+.custom-feature-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* === Seção Hero (Genérica - já que seu código anterior para partículas era diferente.
+    
+    // particlesData seria um array de objetos com { id, startX, startY, endX, endY, delay }
+    
+    // particlesData.map( ajuste conforme o HTML) === */
+.custom-hero-section {
+  position: relative;
+  /* Exemplo de fundo padrão claro para contraste da navbar */
+  background: linear-gradient(145deg, #FFFFFF 0p => (
+    //   <motion.div
+    //     key={p.id}
+    //     className="synapse-particle absolute w-[5px] h-[5px] rounded-full"
+    //     style={{ 
+    //         background: 'radial-gradient(circle, #8EFAFF 0%, #05D7FB 60%, rgba(5,215,251,0) 100%)',
+    //         //%, #F7FAFC 50%, #EFF6FF 100%); /* Branco para Azul muito claro */
+  overflow: hidden; 
+}
+
+.custom-hero-title {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  letter Posição inicial via style para evitar FOUC
+    //         left: `${p.startX}%`, 
+    //         top: `${p.startY}%`,
+    //     }}
+    //     initial={{ x: 0, y: 0, scale: 0.3, opacity: 0 }}
+    //     animate={{-spacing: -0.025em; /* Mais comum */
+  /* Para títulos com gradiente, aplique as classes Tailwind no JSX:
+     text-transparent bg-clip-text bg-gradient-to-r from-marca
+    //       x: [`0%`, `${(p.endX - p.startX) * 0.1}%`, `${(p.endX - p.startX) * 0.9}%`, `${p-azul to-marca-ciano
+  */
+}
+
+/* === Efeito de brilho "shimmer" para.endX - p.startX}%`], // Movimento em X relativo
+    //       y: [`0%`, `${(p.endY - p.startY) * 0.1}%`, `${(p.endY - p.startY) * 0.9}%`, `${p.endY - p.startY}%`], // Movimento em Y relativo
+    //       scale: [ botões (Tailwind com pseudo-elemento) === */
+/* Aplique 'group' ao botão e este CSS ao filho direto que preenche o botão */
+.button-shimmer-effect::before {
+  content: '';
+  position: absolute;0.3, 1, 1, 0.3],
+    //       opacity: [0, 0.9, 0.9, 0],
+    //     }}
+    //     transition={{
+    //       duration: 3,
+    //       ease: "easeInOut",
+    //       repeat: Infinity,
+    //       delay
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.3) : p.delay, // Delay individual da partícula
+    //       times: [0, 0.1, 0.9, 1] // Correspondendo aos keyframes da animação CSS
+    //     }}
+    //   />
+    // ))
+    ```50%, /* Brilho branco sutil */
+    transparent 70%
+  );
+  background-size: 250% 250%;
+  background-position: 150% 50%; /* Começa fora */
+  transition: background-position 0.6s cubic-bezier(0.2
+    *   **Otimização:** Animar `transform` e `opacity` com Framer Motion é geralmente mais performático. Controlar a trajetória e o timing via JavaScript dá mais flex5, 0.1, 0.25, 1);
+  border-radius: inherit; /* Herda o border-radius do botão */
+  pointer-events: none;
+  opacity: 0;
+}
+ibilidade. O CSS `moveParticle` com variáveis era uma boa ideia, mas integrá-lo com o ciclo de vida do React para cada partícula individualmente pode ser mais complexo do que usar Framer Motion diretamente.
+
+---
+
+**.group:hover .button-shimmer-effect::before {
+  background-position: -50% 54. Animação de Pulso Genérica (`@keyframes pulse`)**
+
+*   Já usamos a versão `framer-motion` para isso0%; /* Move o brilho através do botão */
+  opacity: 1;
+}
+
+
+/* === Grid de Métricas (como na AnnaPage) === */
+.metrics-grid-container {
+  display: grid;
+  grid-template-columns: (`PulsingBackgroundEffect`). Se precisar em outro elemento DOM:
+
+    ```tsx
+    // <motion.div
+    //   animate={{
+    //     scale: [1, 1.05, 1],
+    //     opacity repeat(auto-fit, minmax(260px, 1fr)); /* Ajuste minmax */
+  gap: 1.75rem; /* gap-7 */
+}
+
+.metric-card-item { /* Para aplicar ao card de métrica individual */
+  background: rgba(255, 255, 255, : [0.4, 0.7, 0.4],
+    //   }}
+    //   transition={{
+    //     duration: 4,
+    //     ease: "easeInOut",
+    //     repeat: Infinity,
+    //   }}
+    // >
+    //   Conteúdo que Pulsa
+    // </motion.div>
+    ```
+
+0.85);
+  backdrop-filter: blur(8px);
+  border-radius: 1rem; /* rounded-xl */
+  padding: 1.75rem; /* p-7 */
+  text-align: center;
+  border: 1px solid rgba(203, 213, 225, 0.4); /* Borda mais sutil */
+  box-shadow: 0 5px 15---
+
+**5. `.anna-avatar`**
+
+*   **Implementação com Tailwind e Framer Motion (para um componente Avatar):**
+
+    ```tsx
+    // No seu componente AnnaAvatar.tsx
+    // import { motion } from 'framer-motion';
+    // <motion.div 
+    //   className="anna-avatar relativepx rgba(50, 50, 93, 0.05), 0 2px 5px rgba(0, 0, 0, 0.03);
+  transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+  will-change: transform, box-shadow; /* Otimização de performance */
+}
+
+.metric-card-item:hover {
+  transform: translateY(-5px rounded-full p-1 // P-1 para espaço para borda interna se for SVG
+    //              bg-gradient-to-br from-blue-500/5 via-sky-500/5 to-purple-500/5 //) scale(1.02);
+  box-shadow: 0 10px 25px rgba(42, 21, 235, 0.1), 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.metric-card-value {
+  font-size: 2.7 Fundo gradiente sutil
+    //              backdrop-blur-sm shadow-lg hover:shadow-xl"
+    5rem; /* Equivalente a text-4xl ou text-5xl dependendo da base */
+  font-weight: //   style={{
+    //       // Borda interna complexa pode precisar de :before/:after ou SVG an700; /* font-bold */
+  /* Aplicar o gradiente da marca RG Pulse no texto */inhado.
+    //       // Mais simples:
+    //       boxShadow: "0 6px 24px rgba(42, 21, 235, 0.1), 0 2px 6
+  background: linear-gradient(45deg, #2A15EB, #05D7FB, #DE1CFB);
+  -webkit-background-clip: text;
+  background-clip: text;px rgba(5, 215, 251, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.15)"
+    //   
+  color: transparent;
+  margin-bottom: 0.375rem; /* mb-1.5 */
+  /* Animação de brilho (opcional, pode ser controlada por Framer Motion no}}
+    //   whileHover={{ 
+    //       y: -4, 
+    //       scale: 1.03,
+    //       boxShadow: "0 10px 30px rgba(4 componente) */
+  /* background-size: 200% auto; */
+  /* animation: shine2, 21, 235, 0.18), 0 3px 9px rgba(5, 215, 251, 0.12), inset 0 0 0 1.5px rgba(255, 255, 255, 0.25)"
+    //   }}
+MetricValue 4s linear infinite alternate; */
+}
+
+/* Se quiser animar o gradiente do texto da métrica com CSS */
+/* @keyframes shineMetricValue {
+  to {
+    background-position: 200% center;
+  }
+} */
+
+.metric-card-label {
+  font-size:     //   transition={{ type: "spring", stiffness: 300, damping: 20 }}
+    // >
+    //   <img src="..." alt="Anna Avatar" className="rounded-full w-24 h-24 object-cover" />
+    // </motion.div>
+    ```
+
+---
+
+**6. `.feature-card`**0.9rem; /* Entre text-sm e text-base */
+  color: #475569; /* slate-600 */
+  line-height: 1.5; /* leading-normal */
+}
+
+ (assumindo que é usado para os cards na `AnnaPage`)
+
+*   **Implementação com Tailwind e Framer Motion:**
+
+    ```tsx
+    // Dentro do map dos features na AnnaPage.tsx
+    // <motion.div
+    //   className="feature-card relative bg-white/90 backdrop-blur-md border border-slate-200/* === Estilos para garantir que o Tailwind 'group' funcione com o conteúdo ::before === */
+/* Garante que o conteúdo do card fique acima do pseudo-elemento ::before */
+.custom-feature-card > *, .hero-button > * {/70 rounded-xl shadow-lg p-6 group"
+    //   whileHover={{ 
+    //     y: -6
+    position: relative;
+    z-index: 1;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #94a3b8; /* slate-400 */
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #64748b; /* slate-500 */
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}

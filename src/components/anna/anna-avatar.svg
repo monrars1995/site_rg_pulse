@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Fundo gradiente -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rosto e características -->
+  <g id="avatar">
+    <!-- Cabelo -->
+    <path d="M250 100 C 150 100, 100 200, 100 300 C 100 400, 200 450, 250 450 C 300 450, 400 400, 400 300 C 400 200, 350 100, 250 100" fill="#2a9d8f" />
+    
+    <!-- Rosto -->
+    <ellipse cx="250" cy="250" rx="120" ry="150" fill="#ffddd2" />
+    
+    <!-- Olhos -->
+    <g id="eyes">
+      <ellipse cx="200" cy="220" rx="25" ry="15" fill="#432818" />
+      <ellipse cx="300" cy="220" rx="25" ry="15" fill="#432818" />
+      <circle cx="210" cy="215" r="5" fill="#ffffff" />
+      <circle cx="310" cy="215" r="5" fill="#ffffff" />
+    </g>
+    
+    <!-- Sobrancelhas -->
+    <path d="M180 190 Q 200 180 220 190" stroke="#432818" stroke-width="4" fill="none" />
+    <path d="M280 190 Q 300 180 320 190" stroke="#432818" stroke-width="4" fill="none" />
+    
+    <!-- Nariz -->
+    <path d="M250 230 Q 245 260 250 280" stroke="#dba390" stroke-width="3" fill="none" />
+    
+    <!-- Boca -->
+    <path d="M220 310 Q 250 330 280 310" stroke="#e76f51" stroke-width="3" fill="none" />
+    
+    <!-- Blazer -->
+    <path d="M150 350 L 150 500 L 350 500 L 350 350" fill="#264653" />
+    <path d="M200 350 L 220 400 L 280 400 L 300 350" fill="#2a9d8f" />
+    
+    <!-- Logo Pulse -->
+    <text x="240" y="380" font-family="Arial" font-size="24" fill="#ffffff">PULSE</text>
+  </g>
+  
+  <!-- Ícone flutuante -->
+  <g id="floating-icon" transform="translate(350,100)">
+    <circle cx="0" cy="0" r="30" fill="#4361ee" opacity="0.2" />
+    <circle cx="0" cy="0" r="20" fill="#4361ee" />
+    <path d="M-10 0 A 10 10 0 0 1 10 0 A 10 10 0 0 1 -10 0" fill="#ffffff" />
+  </g>
+</svg>

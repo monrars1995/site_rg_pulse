@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Globo Neural com ID Visual da Página</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            /* Fundo do body branco para demonstrar a transparência do canvas.
+               Na sua página, o canvas transparente ficará sobre o fundo existente. */
+            background-color: #FFFFFF;
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            border-radius: 15px;
+            /* Sombra do canvas com um tom ciano da ID Visual */
+            box-shadow: 0 0 25px rgba(0, 224, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // ----- Configurações Globais -----
+        const LARGURA_CANVAS = 600;
+        const ALTURA_CANVAS = 600;
+
+        const RAIO_GLOBO_ESFERA = 160;
+
+        // Cores Inspiradas na ID Visual da Página (Anna - RG Pulse)
+        const COR_NO_BASE_ID_VISUAL = [46, 49, 146];    // Azul Escuro (Ex: #2E3192)
+        const COR_NO_BRILHO_PULSO_ID_VISUAL = [46, 111, 255]; // Azul Médio (Ex: #2E6FFF)
+        const COR_NO_BRILHO_INTERATIVO_ID_VISUAL = [0, 224, 255]; // Ciano (Ex: #00E0FF)
+
+        const COR_CONEXAO_BASE_ID_VISUAL = [46, 111, 255, 50]; // Azul Médio translúcido
+        const COR_CONEXAO_INTERMEDIARIA_ID_VISUAL = [46, 111, 255, 120]; // Azul Médio mais visível
+        const COR_CONEXAO_INTERATIVA_ID_VISUAL = [0, 224, 255, 180]; // Ciano para destaque
+
+        const NUM_NOS = 200;
+        const TAMANHO_NO_MIN = 1.8;
+        const TAMANHO_NO_MAX = 4.2;
+        const MAX_CONEXOES_POR_NO = 2;
+        const DISTANCIA_MAX_CONEXAO_3D = RAIO_GLOBO_ESFERA * 0.9;
+        const FATOR_SENSIBILIDADE_INTERACAO = 0.9;
+
+        let nos = [];
+        let conexoes = [];
+
+        let anguloYAlvo = 0;
+        let anguloXAlvo = 0;
+        let anguloYAtual = 0;
+        let anguloXAtual = 0;
+        const FATOR_SUAVIZACAO_ROTACAO = 0.05;
+
+        let cam;
+
+        // ----- Classe Nó (Neurónio) -----
+        class No {
+            constructor(pos3D) {
+                this.pos3D = pos3D;
+                if (isNaN(this.pos3D.x) || isNaN(this.pos3D.y) || isNaN(this.pos3D.z)) {
+                    this.pos3D = createVector(0,0,0);
+                }
+                this.tamanhoBase = random(TAMANHO_NO_MIN, TAMANHO_NO_MAX);
+                this.tamanhoAtual = this.tamanhoBase;
+                this.fasePulso = random(TWO_PI);
+                this.velocidadePulso = random(0.02, 0.08);
+                
+                // Aplicando as novas cores de nó baseadas na ID Visual
+                this.corBase = color(COR_NO_BASE_ID_VISUAL);
+                this.corBrilhoPulso = color(COR_NO_BRILHO_PULSO_ID_VISUAL);
+                this.corBrilhoInterativo = color(COR_NO_BRILHO_INTERATIVO_ID_VISUAL);
+                this.corAtual = this.corBase;
+                this.influenciaInterativa = 0;
+            }
+
+            atualizarInteracao() {
+                if (!this.pos3D) return;
+                let effectiveAngleY = anguloYAtual + frameCount * 0.07;
+
+                let mat = new p5.Matrix();
+                mat.rotate(radians(anguloXAtual), [1, 0, 0]);
+                mat.rotate(radians(effectiveAngleY), [0, 1, 0]);
+
+                let originalPos = this.pos3D.copy();
+                let posRotacionada = createVector();
+                mat.apply(originalPos, posRotacionada);
+
+                let zNoEspacoVisao = posRotacionada.z;
+                this.influenciaInterativa = map(zNoEspacoVisao, -RAIO_GLOBO_ESFERA, RAIO_GLOBO_ESFERA, 0, 1, true);
+                this.influenciaInterativa = pow(this.influenciaInterativa, 2.5) * FATOR_SENSIBILIDADE_INTERACAO;
+                this.influenciaInterativa = constrain(this.influenciaInterativa, 0, 1);
+            }
+
+            pulsar() {
+                this.fasePulso += this.velocidadePulso;
+                let pulsoCru = sin(this.fasePulso);
+                let pulsoMapeado = (pulsoCru + 1) / 2;
+
+                let fatorTamanhoPulso = 1 + pulsoCru * 0.35;
+                let tamanhoDinamicoBase = this.tamanhoBase * fatorTamanhoPulso;
+
+                this.tamanhoAtual = lerp(tamanhoDinamicoBase, this.tamanhoBase * 2.2, this.influenciaInterativa);
+                this.tamanhoAtual = max(this.tamanhoAtual, TAMANHO_NO_MIN * 0.7);
+
+                let corIntermediaria = lerpColor(this.corBase, this.corBrilhoPulso, pulsoMapeado);
+                this.corAtual = lerpColor(corIntermediaria, this.corBrilhoInterativo, this.influenciaInterativa);
+            }
+
+            desenhar() {
+                if (!this.pos3D || isNaN(this.pos3D.x)) return;
+                push();
+                translate(this.pos3D.x, this.pos3D.y, this.pos3D.z);
+
+                if (this.influenciaInterativa > 0.05) {
+                    let alphaAura = map(this.influenciaInterativa, 0.05, 1, 0, 70);
+                    let corAura = color(this.corBrilhoInterativo.levels[0], this.corBrilhoInterativo.levels[1], this.corBrilhoInterativo.levels[2], alphaAura);
+                    fill(corAura);
+                    noStroke();
+                    sphere(this.tamanhoAtual * 2.5);
+                }
+
+                ambientMaterial(this.corAtual);
+                emissiveMaterial(lerpColor(color(0), this.corAtual, 0.5 + this.influenciaInterativa * 0.5));
+                noStroke();
+                sphere(this.tamanhoAtual);
+                pop();
+            }
+        }
+
+        // ----- Funções p5.js -----
+        function setup() {
+            createCanvas(LARGURA_CANVAS, ALTURA_CANVAS, WEBGL);
+            angleMode(DEGREES);
+            cam = createCamera();
+
+            cam.setPosition(0, 0, RAIO_GLOBO_ESFERA * 3.3);
+            cam.lookAt(0,0,0);
+
+            console.log("SETUP: Globo Neural com ID Visual da Página");
+
+            for (let i = 0; i < NUM_NOS; i++) {
+                let u = random(360); let v = random(180);
+                let x = RAIO_GLOBO_ESFERA * sin(v) * cos(u);
+                let y = RAIO_GLOBO_ESFERA * cos(v);
+                let z = RAIO_GLOBO_ESFERA * sin(v) * sin(u);
+                nos.push(new No(createVector(x, y, z)));
+            }
+            console.log(`${nos.length} nós criados.`);
+
+            for (let i = 0; i < nos.length; i++) {
+                let conexoesFeitas = 0;
+                let nosCandidatos = [];
+                for (let j = 0; j < nos.length; j++) {
+                    if (i === j) continue;
+                    if (!nos[i] || !nos[j] || !nos[i].pos3D || !nos[j].pos3D) continue;
+                    let d = p5.Vector.dist(nos[i].pos3D, nos[j].pos3D);
+                    if (d > 0 && d < DISTANCIA_MAX_CONEXAO_3D) {
+                        nosCandidatos.push({ no: nos[j], distancia: d });
+                    }
+                }
+                nosCandidatos.sort((a, b) => a.distancia - b.distancia);
+
+                for (let k = 0; k < nosCandidatos.length && conexoesFeitas < MAX_CONEXOES_POR_NO; k++) {
+                    let jaConectado = conexoes.some(c =>
+                        (c.no1 === nos[i] && c.no2 === nosCandidatos[k].no) ||
+                        (c.no1 === nosCandidatos[k].no && c.no2 === nos[i])
+                    );
+                    if (!jaConectado) {
+                        conexoes.push({ no1: nos[i], no2: nosCandidatos[k].no });
+                        conexoesFeitas++;
+                    }
+                }
+            }
+            console.log(`${conexoes.length} conexões criadas.`);
+        }
+
+        function draw() {
+            clear(); // Limpa o fundo para transparência
+
+            // --- Controlo de Rotação pelo Rato ---
+            let maxRotacao = 35;
+            anguloYAlvo = map(mouseX, 0, width, -maxRotacao, maxRotacao, true);
+            anguloXAlvo = map(mouseY, 0, height, maxRotacao, -maxRotacao, true);
+
+            anguloYAtual = lerp(anguloYAtual, anguloYAlvo, FATOR_SUAVIZACAO_ROTACAO);
+            anguloXAtual = lerp(anguloXAtual, anguloXAlvo, FATOR_SUAVIZACAO_ROTACAO);
+
+            rotateX(anguloXAtual);
+            rotateY(anguloYAtual);
+            rotateY(frameCount * 0.07);
+
+
+            // Luzes
+            ambientLight(80, 80, 120); // Luz ambiente um pouco mais azulada para combinar
+            directionalLight(200, 220, 255, 0.5, 0.6, -0.7); // Luz direcional clara
+            // Luz de ponto com a cor de destaque (ciano)
+            pointLight(COR_NO_BRILHO_INTERATIVO_ID_VISUAL[0], COR_NO_BRILHO_INTERATIVO_ID_VISUAL[1], COR_NO_BRILHO_INTERATIVO_ID_VISUAL[2],
+                       0, 0, RAIO_GLOBO_ESFERA * 1.5);
+
+
+            // --- Atualizar e Desenhar Nós ---
+            for (let no of nos) {
+                if (no && typeof no.atualizarInteracao === 'function') {
+                    no.atualizarInteracao();
+                    no.pulsar();
+                    no.desenhar();
+                }
+            }
+
+            // --- Desenhar Conexões ---
+            strokeWeight(0.5);
+            for (let conexao of conexoes) {
+                if (!conexao || !conexao.no1 || !conexao.no2 || !conexao.no1.pos3D || !conexao.no2.pos3D) continue;
+
+                let influenciaMedia = (conexao.no1.influenciaInterativa + conexao.no2.influenciaInterativa) / 2;
+
+                // Aplicando as novas cores de conexão baseadas na ID Visual
+                let corIntermediariaConexao = lerpColor(color(COR_CONEXAO_BASE_ID_VISUAL), color(COR_CONEXAO_INTERMEDIARIA_ID_VISUAL), influenciaMedia);
+                let corFinalConexao = lerpColor(corIntermediariaConexao, color(COR_CONEXAO_INTERATIVA_ID_VISUAL), influenciaMedia);
+                
+                let alphaBase = COR_CONEXAO_BASE_ID_VISUAL[3] || 50;
+                let alphaInterativo = COR_CONEXAO_INTERATIVA_ID_VISUAL[3] || 180;
+                corFinalConexao.setAlpha(lerp(alphaBase, alphaInterativo, influenciaMedia * influenciaMedia));
+
+
+                stroke(corFinalConexao);
+                let espessura = lerp(0.4, 1.9, influenciaMedia * influenciaMedia);
+                strokeWeight(espessura);
+
+                line(conexao.no1.pos3D.x, conexao.no1.pos3D.y, conexao.no1.pos3D.z,
+                     conexao.no2.pos3D.x, conexao.no2.pos3D.y, conexao.no2.pos3D.z);
+            }
+        }
+    </script>
+</body>
+</html>

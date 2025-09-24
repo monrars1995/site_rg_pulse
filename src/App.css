@@ -1,0 +1,139 @@
+/* App.css ou index.css (seu arquivo CSS global principal) */
+
+/* 
+  Se você NÃO ESTÁ USANDO Tailwind CSS, considere adicionar um reset mais completo aqui,
+  como normalize.css ou um reset minimalista.
+  Exemplo de reset minimalista:
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+*/
+
+/* === Estilos Globais === */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; /* Exemplo de pilha de fontes moderna */
+  line-height: 1.6; /* Melhor legibilidade */
+  font-size: 16px; /* Tamanho de fonte base, pode ser ajustado via Tailwind */
+  color: #374151; /* text-slate-700 (cor de texto padrão escura) */
+  background-color: #F9FAFB; /* bg-slate-50 (cor de fundo padrão muito clara) */
+  -webkit-font-smoothing: antialiased; /* Melhora renderização de fontes no WebKit */
+  -moz-osx-font-smoothing: grayscale; /* Melhora renderização de fontes no Firefox */
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden; /* Prevenir scroll horizontal indesejado */
+}
+
+/*
+  Aplica box-sizing a todos os elementos, geralmente já coberto pelo Preflight do Tailwind.
+  Se não usar Tailwind, descomente.
+*/
+/*
+html {
+  box-sizing: border-box;
+}
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+*/
+
+
+/* === Contêiner Raiz da Aplicação === */
+#root {
+  /* 
+    A estrutura de 'max-width' e 'margin: auto' geralmente é controlada pelo seu componente 
+    de Layout principal ou classes 'container mx-auto' do Tailwind nas seções.
+    Remover o padding e text-align daqui para permitir mais flexibilidade por página/seção.
+  */
+  /* 
+    max-width: 1280px; /* Pode ser útil, mas geralmente controlado pelo Tailwind `container` 
+    margin: 0 auto;
+  */
+  display: flex; /* Para que o #root se comporte como um container flex para o App.tsx */
+  flex-direction: column;
+  min-height: 100vh; /* Garante que o footer (se existir) fique no final mesmo com pouco conteúdo */
+}
+
+/* === Estilos Globais para Links (Complementar ao Tailwind) === */
+a {
+  color: #2563EB; /* Cor de link padrão (ex: text-blue-600) */
+  text-decoration: none; /* Remover sublinhado padrão, controlar via Tailwind/CSS se necessário */
+  transition: color 0.2s ease-in-out;
+}
+
+a:hover {
+  /* color: #1D4ED8; /* Cor de hover (ex: text-blue-700) */
+  /* Você pode preferir controlar o hover de links com classes Tailwind nos próprios links */
+  text-decoration: none; /* Garante que não haja sublinhado no hover a menos que especificado */
+}
+
+/* === Removido Estilos Específicos do Template Vite === */
+/*
+.logo { ... }
+.logo:hover { ... }
+.logo.react:hover { ... }
+@keyframes logo-spin { ... }
+@media (prefers-reduced-motion: no-preference) { ... }
+.card { ... }
+*/
+
+/* === Classes Utilitárias Globais (Se necessário) === */
+/* 
+  Você pode adicionar aqui classes utilitárias que usa frequentemente e não são cobertas pelo Tailwind.
+  Exemplo:
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+*/
+
+/* === Consistência para scrollbar (opcional, pode ser muito estilizado) === */
+/* 
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1; // slate-300
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8; // slate-500
+}
+*/
+
+/* 
+  Para a seleção de texto, você pode manter o estilo da sua `BlogPage`
+  aqui para aplicar globalmente, se desejar.
+*/
+::selection {
+  background-color: rgba(42, 21, 235, 0.8); /* #2A15EB com opacidade */
+  color: white;
+}
+::-moz-selection { /* Para Firefox */
+  background-color: rgba(42, 21, 235, 0.8);
+  color: white;
+}
+
+/* Estilo de Foco Visível Global (para acessibilidade) */
+*:focus-visible {
+  outline: 2px solid #2A15EB; /* Cor principal da RG Pulse */
+  outline-offset: 2px;
+  border-radius: 2px; /* Leve arredondamento para o outline */
+}
+/* Remover outline padrão para elementos que já têm um focus-visible customizado */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  /* O estilo de anel do Tailwind geralmente já lida com isso, mas esta é uma alternativa global */
+}

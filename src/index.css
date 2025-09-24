@@ -1,0 +1,218 @@
+/* index.css */
+
+/* Importação de Fonte */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+
+/* Diretivas Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definições de Variáveis CSS (Tokens de Tema) */
+@layer base {
+  :root {
+    /* Cores base para o tema claro */
+    --background: 0 0% 100%;                     /* hsl(0, 0%, 100%) - Branco */
+    --foreground: 224 71.4% 4.1%;                /* hsl(224, 71%, 4%) - Ex: Cor de texto principal (Slate 950) */
+
+    --card: 0 0% 100%;                           /* Fundo dos cards */
+    --card-foreground: 224 71.4% 4.1%;          /* Texto dentro dos cards */
+
+    --popover: 0 0% 100%;                        /* Fundo de popovers */
+    --popover-foreground: 224 71.4% 4.1%;       /* Texto em popovers */
+
+    /* Cores da Marca RG Pulse (ajuste HSL para precisão exata das suas cores hex) */
+    /* #2A15EB -> Azul Principal -> ~hsl(247, 84%, 50%) */
+    /* #05D7FB -> Ciano Principal -> ~hsl(190, 97%, 50%) */
+    /* #DE1CFB -> Roxo Principal -> ~hsl(291, 96%, 54%) */
+
+    --primary: 247 84% 49%;                     /* RG Pulse Azul como primário */
+    --primary-foreground: 0 0% 100%;             /* Branco para texto sobre primário */
+
+    --secondary: 190 97% 50%;                   /* RG Pulse Ciano como secundário */
+    --secondary-foreground: 224 71.4% 4.1%;      /* Texto escuro sobre secundário (ciano claro) */
+    
+    --accent: 291 96% 54%;                      /* RG Pulse Roxo como acento */
+    --accent-foreground: 0 0% 100%;              /* Branco para texto sobre acento */
+
+    /* Cores para estados e utilitários */
+    --muted: 220 13% 91%;                       /* ~Slate 200 */
+    --muted-foreground: 220 9% 46%;              /* ~Slate 500 */
+
+    --destructive: 0 72.2% 50.6%;               /* Vermelho para ações destrutivas */
+    --destructive-foreground: 0 0% 100%;         /* Branco */
+
+    --border: 220 13% 88%;                       /* ~Slate 300, um pouco mais visível que input */
+    --input: 220 13% 91%;                        /* ~Slate 200 para borda de input */
+    --ring: 247 84% 60%;                         /* Cor de anel de foco (azul RG Pulse mais claro) */
+
+    --radius: 0.5rem;                           /* Padrão para border-radius (Tailwind 'rounded-lg' é 0.5rem) */
+
+    /* Definições explícitas das cores da marca para uso em gradientes */
+    --brand-blue-hsl: 247 84% 49%;
+    --brand-cyan-hsl: 190 97% 50%;
+    --brand-purple-hsl: 291 96% 54%;
+  }
+
+  .dark {
+    /* Cores base para o tema escuro */
+    --background: 224 71.4% 4.1%;                /* Ex: Slate 950 (fundo escuro) */
+    --foreground: 210 20% 98%;                   /* Ex: Slate 50 (texto claro) */
+
+    --card: 220 14.3% 11.0%;                     /* Ex: Slate 800 (fundo de card escuro) */
+    --card-foreground: 210 20% 98%;
+
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+
+    /* Ajuste as cores primárias, secundárias e de acento para o modo escuro */
+    --primary: 190 97% 60%;                     /* Ciano RG Pulse mais claro para primário no escuro */
+    --primary-foreground: 224 71.4% 4.1%;        /* Texto escuro sobre primário claro */
+
+    --secondary: 247 84% 65%;                   /* Azul RG Pulse mais claro */
+    --secondary-foreground: 210 20% 98%;
+
+    --accent: 291 96% 65%;                      /* Roxo RG Pulse mais claro */
+    --accent-foreground: 0 0% 100%;
+
+    /* Cores da marca (podem ser as mesmas ou versões mais claras) */
+    --brand-blue-hsl: 247 84% 60%;
+    --brand-cyan-hsl: 190 97% 55%;
+    --brand-purple-hsl: 291 96% 60%;
+    
+    --muted: 220 14.3% 11.0%;                     
+    --muted-foreground: 220 9% 46%;             
+
+    --destructive: 0 62.8% 50.6%;                /* Vermelho similar, mas pode precisar de ajuste de brilho */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 14.3% 11.0%;                     /* Bordas mais escuras */
+    --input: 220 14.3% 11.0%;
+    --ring: 190 97% 65%;                         /* Anel de foco ciano mais brilhante */
+  }
+}
+
+/* Estilos Base Globais */
+@layer base {
+  * {
+    @apply border-border transition-colors duration-150; /* Transição de cor sutil para tudo */
+  }
+  body {
+    @apply bg-background text-foreground font-montserrat antialiased;
+    font-size: 16px; /* Fonte base para cálculos de rem */
+    line-height: 1.65;
+    -webkit-tap-highlight-color: transparent; /* Remove highlight azul no toque em mobile */
+  }
+  /* Estilos de seleção de texto */
+  ::selection {
+    @apply bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] bg-opacity-80;
+  }
+  ::-moz-selection { /* Para Firefox */
+    @apply bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] bg-opacity-80;
+  }
+  /* Estilo de Foco Visível Global para acessibilidade */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-offset-2 ring-[hsl(var(--ring))] ring-offset-[hsl(var(--background))] rounded-sm;
+  }
+}
+
+/* Componentes Customizados e Utilitários da Marca */
+@layer components {
+  .text-brand-gradient {
+    @apply text-transparent bg-clip-text bg-gradient-to-r 
+           from-[hsl(var(--brand-blue))] via-[hsl(var(--brand-cyan))] to-[hsl(var(--brand-purple))];
+  }
+
+  .bg-brand-gradient {
+    @apply bg-gradient-to-r 
+           from-[hsl(var(--brand-blue))] via-[hsl(var(--brand-cyan))] to-[hsl(var(--brand-purple))];
+  }
+
+  /* Navbar Item - para sublinhado animado (se não usar Framer Motion para isso) */
+  .nav-link-base { /* Aplicar a NavLink/Link no componente Navbar */
+    @apply px-1 py-2 text-md font-medium transition-colors duration-200 relative group;
+    /* A cor do texto (ativo/inativo/hover) é controlada no componente Navbar.tsx */
+  }
+  .nav-link-underline { /* Span dentro do .nav-link-base */
+    @apply absolute left-0 -bottom-0.5 w-full h-[2px] bg-[hsl(var(--primary))] 
+           transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out origin-left;
+  }
+  .nav-link-active-underline { /* Classe para adicionar ao span quando o link está ativo */
+    @apply scale-x-100;
+  }
+
+  /* Efeito de brilho em hover para botões com gradiente da marca */
+  .button-brand-shine {
+    @apply relative overflow-hidden isolation-isolate transition-all duration-300;
+  }
+  .button-brand-shine::before {
+    @apply content-[""] absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(
+      110deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.35) 50%, /* Brilho branco mais pronunciado */
+      transparent 70%
+    );
+    background-size: 250% 250%;
+    background-position: 150% 50%; /* Começa fora da direita */
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1; /* Garante que fique sobre o fundo do botão mas abaixo do texto */
+  }
+  .button-brand-shine:hover::before {
+    @apply opacity-100;
+    background-position: -50% 50%; /* Move para a esquerda */
+    transition-duration: 0.7s;
+    transition-property: background-position, opacity;
+  }
+  /* Para o conteúdo do botão (texto, ícones) ficar acima do brilho: */
+  .button-brand-shine > * {
+    @apply relative z-10;
+  }
+
+}
+
+/* Animações CSS Utilitárias (se não usar Framer Motion para tudo) */
+@layer utilities {
+  @keyframes fadeInSmooth {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fadeInSmooth {
+    animation: fadeInSmooth 0.5s ease-out forwards;
+  }
+
+  @keyframes slideInFromLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .animate-slideInFromLeft {
+    animation: slideInFromLeft 0.5s ease-out forwards;
+  }
+
+  @keyframes slideInFromRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .animate-slideInFromRight {
+    animation: slideInFromRight 0.5s ease-out forwards;
+  }
+  
+  /* Classes utilitárias para cards e seções se não forem diretamente com Tailwind */
+  .section-padding-base {
+    @apply py-16 md:py-20 lg:py-24;
+  }
+  .card-base {
+    @apply bg-card text-card-foreground rounded-xl shadow-lg p-6;
+  }
+  .card-hover-lift {
+    @apply transition-transform duration-300 ease-out hover:-translate-y-1.5;
+  }
+}
+
+/* Removidas as classes CSS específicas de .neural-globe-container, .avatar-wrapper, etc., 
+   pois são muito específicas de componentes e idealmente devem ser estilizadas 
+   com Tailwind diretamente no JSX do componente ou com CSS Modules para esse componente.
+   Se você tem um visual 3D complexo que necessita CSS global, ele pode ser adicionado aqui,
+   mas tente manter o CSS global mais genérico e reutilizável.
+*/

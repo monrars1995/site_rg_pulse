@@ -1,0 +1,900 @@
+Agent2Agent Protocol
+Documentation and testing lab for the Agent2Agent protocol
+
+Documentation
+A2A Testing Lab
+Code Examples
+What is A2A?
+The Agent2Agent (A2A) is an open protocol created by Google to allow communication and interoperability between agent applications.
+
+This protocol establishes a common standard for agents built in different structures and providers to collaborate and exchange information.
+
+GitHub: google/A2A
+Google Developers Blog: A2A
+A2A Communication Methods
+1. Standard HTTP (tasks/send)
+This method sends a request and receives the complete response at once, after the agent has finished all processing.
+
+Features:
+Single HTTP request with complete response
+Wait for the agent to finish all processing
+Best for simple and quick tasks
+Simpler implementation in frontend
+2. Streaming (tasks/sendSubscribe)
+This method uses Server-Sent Events (SSE) to provide real-time updates while the agent processes the request.
+
+Features:
+Partial responses in real-time
+Instant feedback for the user
+Best for chat interfaces and long responses
+Better user experience for complex tasks
+Comparison between methods
+Feature	tasks/send	tasks/sendSubscribe
+Response type	Single, complete	Partial event stream
+Response time	After complete processing	Real-time, partial
+Implementation complexity	Simple	Moderate
+UX for long tasks	Worst (long wait)	Better (continuous feedback)
+Network resource usage	Lower for short responses	More efficient for long responses
+Ideal use case	Simple APIs, integrations	Chat interfaces, extensive content
+JSON-RPC 2.0
+The API uses the JSON-RPC 2.0 protocol for communication with A2A agents. A correct JSON-RPC request has the following structure:
+
+{
+  "jsonrpc": "2.0",
+  "method": "tasks/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Your question here"
+        }
+      ]
+    },
+    "sessionId": "abc-123",
+    "id": "task-456"
+  },
+  "id": "call-789"
+}
+
+
+JSON-RPC 2.0 Specification
+Required fields:
+jsonrpc: Protocol version (always "2.0")
+method: Method to be called (ex: "tasks/send")
+params: Call parameters
+id: Unique identifier of the call (can be string or number)
+Important notes:
+The request ID will be returned in the response (important for correlation)
+The message format follows the Google A2A protocol
+Agents may support different features, check the Agent Card for more details
+Response format
+Success response
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "status": {
+      "message": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "Agent response here..."
+          }
+        ]
+      }
+    }
+  },
+  "id": "call-789"
+}
+
+
+Error response
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "code": -32603,
+    "message": "Error message"
+  },
+  "id": "call-789"
+}
+
+
+#################
+
+Technical Details of the Methods
+Method tasks/send
+The tasks/send method performs a standard HTTP request and waits for the complete response.
+
+Request:
+{
+  "jsonrpc": "2.0",
+  "id": "call-123",
+  "method": "tasks/send",
+  "params": {
+    "id": "task-456",
+    "sessionId": "session-789",
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Your question here"
+        }
+      ]
+    }
+  }
+}
+
+
+Headers:
+Content-Type: application/json
+x-api-key: YOUR_API_KEY
+
+
+Response:
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "status": {
+      "state": "completed",
+      "message": {
+        "role": "model",
+        "parts": [
+          {
+            "type": "text",
+            "text": "Complete agent response here."
+          }
+        ]
+      }
+    }
+  },
+  "id": "call-123"
+}
+
+
+Method tasks/sendSubscribe
+The tasks/sendSubscribe method uses Server-Sent Events (SSE) to receive real-time updates.
+
+Request:
+{
+  "jsonrpc": "2.0",
+  "id": "call-123",
+  "method": "tasks/sendSubscribe",
+  "params": {
+    "id": "task-456",
+    "sessionId": "session-789",
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Your question here"
+        }
+      ]
+    }
+  }
+}
+
+
+Headers:
+Content-Type: application/json
+x-api-key: YOUR_API_KEY
+Accept: text/event-stream
+
+
+SSE Event Format:
+Each event follows the standard Server-Sent Events (SSE) format, with the "data:" prefix followed by the JSON content and terminated by two newlines ("\n\n"):
+
+data: {"jsonrpc":"2.0","id":"call-123","result":{"id":"task-456","status":{"state":"working","message":{"role":"agent","parts":[{"type":"text","text":"Processing..."}]},"timestamp":"2025-05-13T18:10:37.219Z"},"final":false}}
+
+data: {"jsonrpc":"2.0","id":"call-123","result":{"id":"task-456","status":{"state":"completed","timestamp":"2025-05-13T18:10:40.456Z"},"final":true}}
+
+
+Event Types:
+Status Updates: Contains the status field with information about the task status.
+Artifact Updates: Contains the artifact field with the content generated by the agent.
+Ping Events: Simple events with the format : ping to keep the connection active.
+Client Consumption:
+For a better experience, we recommend using the EventSource API to consume the events:
+
+// After receiving the initial response via POST, use EventSource to stream
+const eventSource = new EventSource(`/api/v1/a2a/${agentId}/stream?taskId=${taskId}&key=${apiKey}`);
+
+// Process the received events
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  
+  // Process different types of events
+  if (data.result) {
+    // 1. Process status updates
+    if (data.result.status) {
+      const state = data.result.status.state; // "working", "completed", etc.
+      
+      // Check if there is a text message
+      if (data.result.status.message?.parts) {
+        const textParts = data.result.status.message.parts
+          .filter(part => part.type === "text")
+          .map(part => part.text)
+          .join("");
+          
+        // Update UI with the text
+        updateUI(textParts);
+      }
+      
+      // Check if it is the final event
+      if (data.result.final === true) {
+        eventSource.close(); // Close connection
+      }
+    }
+    
+    // 2. Process the generated artifacts
+    if (data.result.artifact) {
+      const artifact = data.result.artifact;
+      
+      // Extract text from the artifact
+      if (artifact.parts) {
+        const artifactText = artifact.parts
+          .filter(part => part.type === "text")
+          .map(part => part.text)
+          .join("");
+          
+        // Update UI with the artifact
+        updateArtifactUI(artifactText);
+      }
+    }
+  }
+};
+
+// Handle errors
+eventSource.onerror = (error) => {
+  console.error("Error in SSE:", error);
+  eventSource.close();
+};
+
+
+Possible task states:
+submitted: Task sent but not yet processed
+working: Task being processed by the agent
+completed: Task completed successfully
+input-required: Agent waiting for additional user input
+failed: Task failed during processing
+canceled: Task was canceled
+Possible task states:
+submitted: Task sent
+working: Task being processed
+input-required: Agent waiting for additional user input
+completed: Task completed successfully
+canceled: Task canceled
+failed: Task processing failed
+
+Frontend implementation
+Practical examples for implementation in React applications
+Standard HTTP
+
+Implementation of tasks/send
+Example of standard implementation in JavaScript/React:
+
+async function sendTask(agentId, message) {
+  // Generate unique IDs
+  const taskId = crypto.randomUUID();
+  const callId = crypto.randomUUID();
+  
+  // Prepare request data
+  const requestData = {
+    jsonrpc: "2.0",
+    id: callId,
+    method: "tasks/send",
+    params: {
+      id: taskId,
+      sessionId: "session-" + Math.random().toString(36).substring(2, 9),
+      message: {
+        role: "user",
+        parts: [
+          {
+            type: "text",
+            text: message
+          }
+        ]
+      }
+    }
+  };
+
+  try {
+    // Indicate loading state
+    setIsLoading(true);
+    
+    // Send the request
+    const response = await fetch(`/api/v1/a2a/${agentId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'YOUR_API_KEY_HERE'
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+
+    // Process the response
+    const data = await response.json();
+    
+    // Check for errors
+    if (data.error) {
+      console.error('Error in response:', data.error);
+      return null;
+    }
+    
+    // Extract the agent response
+    const task = data.result;
+    
+    // Show response in UI
+    if (task.status.message && task.status.message.parts) {
+      const responseText = task.status.message.parts
+        .filter(part => part.type === 'text')
+        .map(part => part.text)
+        .join('');
+      
+      // Here you would update your React state
+      // setResponse(responseText);
+      
+      return responseText;
+    }
+    
+    return task;
+  } catch (error) {
+    console.error('Error sending task:', error);
+    return null;
+  } finally {
+    // Finalize loading state
+    setIsLoading(false);
+  }
+}
+
+Streaming SSE
+
+Example of implementation of streaming with Server-Sent Events (SSE):
+
+async function initAgentStream(agentId, message, onUpdateCallback) {
+  // Generate unique IDs
+  const taskId = crypto.randomUUID();
+  const callId = crypto.randomUUID();
+  const sessionId = "session-" + Math.random().toString(36).substring(2, 9);
+  
+  // Prepare request data for streaming
+  const requestData = {
+    jsonrpc: "2.0",
+    id: callId,
+    method: "tasks/sendSubscribe",
+    params: {
+      id: taskId,
+      sessionId: sessionId,
+      message: {
+        role: "user",
+        parts: [
+          {
+            type: "text",
+            text: message
+          }
+        ]
+      }
+    }
+  };
+
+  try {
+    // Start initial POST request
+    const response = await fetch(`/api/v1/a2a/${agentId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'YOUR_API_KEY_HERE',
+        'Accept': 'text/event-stream' // Important for SSE
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+    
+    // Check content type of the response
+    const contentType = response.headers.get('content-type');
+    
+    // If the response is already SSE, use EventSource
+    if (contentType?.includes('text/event-stream')) {
+      // Use EventSource to process the stream
+      setupEventSource(`/api/v1/a2a/${agentId}/stream?taskId=${taskId}&key=YOUR_API_KEY_HERE`);
+      return;
+    }
+    
+    // Function to configure EventSource
+    function setupEventSource(url) {
+      const eventSource = new EventSource(url);
+      
+      // Handler for received messages
+      eventSource.onmessage = (event) => {
+        try {
+          // Process data from the event
+          const data = JSON.parse(event.data);
+          
+          // Process the event
+          if (data.result) {
+            // Process status if available
+            if (data.result.status) {
+              const status = data.result.status;
+              
+              // Extract text if available
+              let currentText = '';
+              if (status.message && status.message.parts) {
+                const parts = status.message.parts.filter(part => part.type === 'text');
+                if (parts.length > 0) {
+                  currentText = parts.map(part => part.text).join('');
+                }
+              }
+              
+              // Call callback with updates
+              onUpdateCallback({
+                text: currentText,
+                state: status.state,
+                complete: data.result.final === true
+              });
+              
+              // If it's the final event, close the connection
+              if (data.result.final === true) {
+                eventSource.close();
+                onUpdateCallback({
+                  complete: true,
+                  state: status.state
+                });
+              }
+            }
+            
+            // Process artifact if available
+            if (data.result.artifact) {
+              const artifact = data.result.artifact;
+              if (artifact.parts && artifact.parts.length > 0) {
+                const parts = artifact.parts.filter(part => part.type === 'text');
+                if (parts.length > 0) {
+                  const artifactText = parts.map(part => part.text).join('');
+                  
+                  // Call callback with artifact
+                  onUpdateCallback({
+                    text: artifactText,
+                    state: 'artifact',
+                    complete: artifact.lastChunk === true
+                  });
+                  
+                  // If it's the last chunk, close the connection
+                  if (artifact.lastChunk === true) {
+                    eventSource.close();
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error processing event:', error);
+          onUpdateCallback({ error: error.message });
+        }
+      };
+      
+      // Handler for errors
+      eventSource.onerror = (error) => {
+        console.error('Error in EventSource:', error);
+        eventSource.close();
+        onUpdateCallback({ 
+          error: 'Connection with server interrupted',
+          complete: true,
+          state: 'error'
+        });
+      };
+    }
+  } catch (error) {
+    console.error('Error in streaming:', error);
+    // Notify error through callback
+    onUpdateCallback({ 
+      error: error.message,
+      complete: true,
+      state: 'error'
+    });
+    return null;
+  }
+}
+
+React component
+React component with streaming support:
+import React, { useState, useRef } from 'react';
+
+function ChatComponentA2A() {
+  const [message, setMessage] = useState('');
+  const [response, setResponse] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [status, setStatus] = useState('');
+  
+  // Reference to the agentId
+  const agentId = 'your-agent-id';
+  
+  // Callback for streaming updates
+  const handleStreamUpdate = (update) => {
+    if (update.error) {
+      // Handle error
+      setStatus('error');
+      return;
+    }
+    
+    // Update text
+    setResponse(update.text);
+    
+    // Update status
+    setStatus(update.state);
+    
+    // If it's complete, finish streaming
+    if (update.complete) {
+      setIsStreaming(false);
+    }
+  };
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+    
+    // Clear previous response
+    setResponse('');
+    setStatus('submitted');
+    
+    // Start streaming
+    setIsStreaming(true);
+    
+    try {
+      // Start stream with the agent
+      await initAgentStream(agentId, message, handleStreamUpdate);
+      
+      // Clear message field after sending
+      setMessage('');
+    } catch (error) {
+      console.error('Error:', error);
+      setStatus('error');
+      setIsStreaming(false);
+    }
+  };
+  
+  // Render status indicator based on status
+  const renderStatusIndicator = () => {
+    switch (status) {
+      case 'submitted':
+        return <span className="badge badge-info">Sent</span>;
+      case 'working':
+        return <span className="badge badge-warning">Processing</span>;
+      case 'completed':
+        return <span className="badge badge-success">Completed</span>;
+      case 'error':
+        return <span className="badge badge-danger">Error</span>;
+      default:
+        return null;
+    }
+  };
+  
+  return (
+    <div className="chat-container">
+      <div className="chat-messages">
+        {response && (
+          <div className="message agent-message">
+            <div className="message-header">
+              <div className="agent-name">A2A Agent</div>
+              {renderStatusIndicator()}
+            </div>
+            <div className="message-content">
+              {response}
+              {status === 'working' && !response && (
+                <div className="typing-indicator">
+                  <span></span><span></span><span></span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      <form onSubmit={handleSubmit} className="chat-input-form">
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type your message..."
+          disabled={isStreaming}
+          className="chat-input"
+        />
+        <button 
+          type="submit" 
+          disabled={isStreaming || !message.trim()}
+          className="send-button"
+        >
+          {isStreaming ? 'Processing...' : 'Send'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+Code Examples
+Code snippets ready to use with A2A agents
+
+curl -X POST \
+  http://localhost:8000/api/v1/a2a/your-agent-id \
+  -H 'Content-Type: application/json' \
+  -H 'x-api-key: your-api-key' \
+  -d '{
+  "jsonrpc": "2.0",
+  "method": "tasks/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "What is the A2A protocol?"
+        }
+      ]
+    },
+    "sessionId": "session-yy0h22n",
+    "id": "task-h88703s"
+  },
+  "id": "call-re767ef"
+}'
+
+async function testA2AAgent() {
+  const response = await fetch(
+    'http://localhost:8000/api/v1/a2a/your-agent-id',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'your-api-key'
+      },
+      body: JSON.stringify({
+  "jsonrpc": "2.0",
+  "method": "tasks/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "What is the A2A protocol?"
+        }
+      ]
+    },
+    "sessionId": "session-yy0h22n",
+    "id": "task-h88703s"
+  },
+  "id": "call-re767ef"
+})
+    }
+  );
+  
+  const data = await response.json();
+  console.log('Agent response:', data);
+}
+
+import requests
+import json
+
+def test_a2a_agent():
+    url = "http://localhost:8000/api/v1/a2a/your-agent-id"
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": "your-api-key"
+    }
+    
+    payload = {
+  "jsonrpc": "2.0",
+  "method": "tasks/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "What is the A2A protocol?"
+        }
+      ]
+    },
+    "sessionId": "session-yy0h22n",
+    "id": "task-h88703s"
+  },
+  "id": "call-re767ef"
+}
+    
+    response = requests.post(url, headers=headers, json=payload)
+    data = response.json()
+    print("Agent response:", data)
+    
+    return data
+
+if __name__ == "__main__":
+    test_a2a_agent()
+
+    Sending files to the agent
+You can attach files to messages sent to the agent using the A2A protocol. The files are encoded in base64 and incorporated into the message as parts of type "file".
+
+
+Python
+
+import asyncio
+import base64
+import os
+from uuid import uuid4
+
+from common.client import A2ACardResolver, A2AClient
+
+async def send_message_with_files():
+    # Instantiate client
+    card_resolver = A2ACardResolver("http://localhost:8000/api/v1/a2a/your-agent-id")
+    card = card_resolver.get_agent_card()
+    client = A2AClient(agent_card=card)
+    
+    # Create session and task IDs
+    session_id = uuid4().hex
+    task_id = uuid4().hex
+    
+    # Read file and encode in base64
+    file_path = "example.jpg"
+    with open(file_path, 'rb') as f:
+        file_content = base64.b64encode(f.read()).decode('utf-8')
+        file_name = os.path.basename(file_path)
+    
+    # Create message with text and file
+    message = {
+        'role': 'user',
+        'parts': [
+            {
+                'type': 'text',
+                'text': 'Analyze this image for me',
+            },
+            {
+                'type': 'file',
+                'file': {
+                    'name': file_name,
+                    'bytes': file_content,
+                    'mime_type': 'application/octet-stream'  # Important: include the mime_type for correct file processing
+                },
+            }
+        ],
+    }
+    
+    # Create request payload
+    payload = {
+        'id': task_id,
+        'sessionId': session_id,
+        'acceptedOutputModes': ['text'],
+        'message': message,
+    }
+    
+    # Send request
+    task_result = await client.send_task(payload)
+    print(f'\nResponse: {task_result.model_dump_json(exclude_none=True)}')
+
+if __name__ == '__main__':
+    asyncio.run(send_message_with_files())
+
+    JavaScript/TypeScript
+// Function to convert file to base64
+async function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function sendMessageWithFiles() {
+  // Select file (in a web application)
+  const fileInput = document.getElementById('fileInput');
+  const files = fileInput.files;
+  
+  if (files.length === 0) {
+    console.error('No file selected');
+    return;
+  }
+  
+  // Convert file to base64
+  const file = files[0];
+  const base64Data = await fileToBase64(file);
+  
+  // Create session and task IDs
+  const sessionId = crypto.randomUUID();
+  const taskId = crypto.randomUUID();
+  const callId = crypto.randomUUID();
+  
+  // Create message with text and file
+  const payload = {
+    jsonrpc: "2.0",
+    method: "tasks/send",
+    params: {
+      message: {
+        role: "user",
+        parts: [
+          {
+            type: "text",
+            text: "Analyze this document for me",
+          },
+          {
+            type: "file",
+            file: {
+              name: file.name,
+              bytes: base64Data,
+              mime_type: file.type
+            }
+          }
+        ],
+      },
+      sessionId: sessionId,
+      id: taskId,
+    },
+    id: callId,
+  };
+  
+  // Send request
+  const response = await fetch('http://localhost:8000/api/v1/a2a/your-agent-id', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': 'your-api-key',
+    },
+    body: JSON.stringify(payload),
+  });
+  
+  const data = await response.json();
+  console.log('Agent response:', data);
+}Curl
+
+# Convert file to base64
+FILE_PATH="example.jpg"
+FILE_NAME=$(basename $FILE_PATH)
+BASE64_CONTENT=$(base64 -w 0 $FILE_PATH)
+
+# Create request payload
+read -r -d '' PAYLOAD << EOM
+{
+  "jsonrpc": "2.0",
+  "method": "tasks/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Analyze this image for me"
+        },
+        {
+          "type": "file",
+          "file": {
+            "name": "$FILE_NAME",
+            "bytes": "$BASE64_CONTENT",
+            "mime_type": "$(file --mime-type -b $FILE_PATH)"
+          }
+        }
+      ]
+    },
+    "sessionId": "session-123",
+    "id": "task-456"
+  },
+  "id": "call-789"
+}
+EOM
+
+# Send request
+curl -X POST \
+  http://localhost:8000/api/v1/a2a/your-agent-id \
+  -H 'Content-Type: application/json' \
+  -H 'x-api-key: your-api-key' \
+  -d "$PAYLOAD"
+
+  

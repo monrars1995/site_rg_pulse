@@ -1,0 +1,760 @@
+// src/components/QualificationQuiz.tsx
+import React, { useState, ChangeEvent, FormEvent, FunctionComponent, useEffect, useCallback, useRef, KeyboardEvent } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    ArrowLeftIcon as ChevronLeftIconHero,
+    ArrowRightIcon as ChevronRightIconHero,
+    PaperAirplaneIcon,
+    ArrowPathIcon,
+    CheckCircleIcon as CheckCircleIconSolid,
+    ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
+
+import { QuizFormData, QuizQuestion, quizQuestionsConfig, QuizSubmissionResponse } from "../config/quizConfig";
+
+// --- Tipos --- 
+interface LogEntry {
+    timestamp: string;
+    action: string;
+    details?: any;
+    questionId?: string;
+    error?: Error;
+}
+
+interface QualificationQuizProps {
+    onSubmitQuiz: (formData: QuizFormData) => Promise<QuizSubmissionResponse>;
+    onQuizComplete?: (response: QuizSubmissionResponse) => void;
+    // Opcional: modo de depuração para visualizar logs no console
+    debugMode?: boolean;
+}
+
+// --- Configuração das Perguntas --- 
+const totalQuizQuestions = quizQuestionsConfig.length;
+
+// --- ANIMAÇÕES ---
+const stepAnimationVariants = { 
+    enter: (direction: number) => ({ 
+        x: direction > 0 ? '100%' : '-100%', 
+        opacity: 0, 
+        scale: 0.98 
+    }), 
+    center: { 
+        x: 0, 
+        opacity: 1, 
+        scale: 1, 
+        transition: { 
+            type: "spring", 
+            stiffness: 260, 
+            damping: 25, 
+            duration: 0.3 
+        } 
+    }, 
+    exit: (direction: number) => ({ 
+        x: direction < 0 ? '100%' : '-100%', 
+        opacity: 0, 
+        scale: 0.98, 
+        transition: { 
+            duration: 0.2, 
+            ease: "circIn" 
+        } 
+    }), 
+};
+
+const optionCardMotionProps = { 
+    whileHover:{ 
+        scale: 1.015, 
+        y: -2, 
+        boxShadow: "0px 6px 18px rgba(60,30,240,0.09)", 
+        transition: {
+            type:'spring', 
+            stiffness: 350, 
+            damping: 15
+        }
+    }, 
+    whileTap:{ 
+        scale: 0.985 
+    } 
+};
+
+const itemFadeInUp = { 
+    hidden: { 
+        opacity: 0, 
+        y: 20 
+    }, 
+    visible: { 
+        opacity: 1, 
+        y: 0, 
+        transition: { 
+            duration: 0.45, 
+            ease: "easeOut" 
+        } 
+    } 
+};
+
+const staggerContainer = (staggerChildren = 0.06, delayChildren = 0) => ({ 
+    hidden: { 
+        opacity: 0 
+    }, 
+    visible: { 
+        opacity: 1, 
+        transition: { 
+            staggerChildren, 
+            delayChildren, 
+            when: "beforeChildren" 
+        } 
+    } 
+});
+
+// --- SISTEMA DE LOGGING ---
+const logQuizAction = (action: string, details?: any, error?: Error) => {
+    const logEntry: LogEntry = {
+        timestamp: new Date().toISOString(),
+        action,
+        details,
+        error
+    };
+    
+    // Log no console para desenvolvimento
+    console.log(`📝 Quiz: ${action}`, logEntry);
+    
+    // Aqui poderíamos implementar logging para um serviço externo
+    // if (process.env.REACT_APP_LOGGING_ENABLED === 'true') {
+    //   sendLogToService(logEntry);
+    // }
+    
+    return logEntry;
+};
+
+// Função auxiliar FORA do componente
+const getNextQuestionDetails = (
+    startIndex: number,
+    direction: number,
+    currentData: QuizFormData,
+    allQuestions: QuizQuestion[]
+): { nextVisibleIndex: number; skippedQuestionIds: (keyof QuizFormData)[] } => {
+    let nextVisibleIndex = startIndex;
+    const skippedQuestionIds: (keyof QuizFormData)[] = [];
+    const questionsCount = allQuestions.length;
+    while (nextVisibleIndex >= 0 && nextVisibleIndex < questionsCount) {
+        const questionConfig = allQuestions[nextVisibleIndex];
+        const shouldDisplay = questionConfig.conditionalDisplay
+            ? questionConfig.conditionalDisplay(currentData)
+            : true;
+        if (shouldDisplay) {
+            break;
+        } else {
+            skippedQuestionIds.push(questionConfig.id);
+            nextVisibleIndex += direction;
+        }
+    }
+    return { nextVisibleIndex, skippedQuestionIds };
+};
+
+const QualificationQuiz: FunctionComponent<QualificationQuizProps> = ({ 
+    onSubmitQuiz, 
+    onQuizComplete, 
+    debugMode = false 
+}) => {
+    // --- STATE HOOKS ---
+    const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+    const initialFormData: QuizFormData = { 
+        nomeCompleto: '', 
+        email: '', 
+        whatsapp: '', 
+        nomeEmpresa: '', 
+        cargo: '', 
+        outroCargo: '', 
+        segmento: '', 
+        outroSegmento: '', 
+        faturamento: '', 
+        desafioPrincipal: '', 
+        outroDesafio: '', 
+        investimentoMarketing: '', 
+        processoComercial: '', 
+        urgencia: '', 
+        abertoPlano: '', 
+        site: '', 
+        instagram: '' 
+    };
+    
+    const [formData, setFormData] = useState<QuizFormData>(initialFormData);
+    const [errors, setErrors] = useState<Partial<QuizFormData>>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitStatus, setSubmitStatus] = useState<'submitting' | 'success' | 'error' | null>(null);
+    const [animationDirection, setAnimationDirection] = useState(1);
+    const [touchedFields, setTouchedFields] = useState<Partial<{[key in keyof QuizFormData]: boolean}>>({});
+    
+    // --- REFS ---
+    const quizContainerRef = useRef<HTMLDivElement>(null);
+    const currentQuestionRef = useRef<HTMLDivElement>(null);
+    
+    // --- LOGGING ---
+    useEffect(() => {
+        logQuizAction('quiz_initialized', { totalQuestions: totalQuizQuestions });
+        
+        // Implementação de logging para teclas pressionadas
+        const handleGlobalKeydown = (e: KeyboardEvent) => {
+            if (debugMode) {
+                logQuizAction('key_pressed', { key: e.key, keyCode: e.which || e.keyCode });
+            }
+        };
+        
+        window.addEventListener('keydown', handleGlobalKeydown as any);
+        return () => {
+            window.removeEventListener('keydown', handleGlobalKeydown as any);
+            logQuizAction('quiz_unmounted');
+        };
+    }, [debugMode]);
+    
+    // Verificações de erro após todos os Hooks
+    if (!quizQuestionsConfig || totalQuizQuestions === 0) {
+        logQuizAction('critical_error', { message: "Quiz configuration is empty or not loaded" });
+        return ( 
+            <div 
+                className="flex flex-col items-center justify-center h-screen p-4 text-center"
+                role="alert"
+                aria-live="assertive"
+            > 
+                <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mb-4" aria-hidden="true" /> 
+                <h1 className="text-2xl font-bold text-red-600 mb-2">Erro Crítico na Configuração</h1> 
+                <p className="text-slate-700">A configuração das perguntas do quiz está vazia.</p> 
+            </div> 
+        );
+    }
+    
+    // --- ACCESSIBILITY ---
+    useEffect(() => {
+        // Foco no elemento da pergunta atual quando muda
+        if (currentQuestionRef.current) {
+            currentQuestionRef.current.focus();
+        }
+        
+        logQuizAction('question_changed', { 
+            questionIndex: currentQuestionIdx, 
+            questionId: quizQuestionsConfig[currentQuestionIdx]?.id 
+        });
+    }, [currentQuestionIdx]);
+
+    // --- NAVEGAÇÃO E MANIPULAÇÃO DE EVENTOS ---
+    
+    // Manipulação de navegação por teclado
+    const handleKeyNavigation = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+        const { key } = e;
+        const currentQuestion = quizQuestionsConfig[currentQuestionIdx];
+        
+        // Navega para a próxima pergunta com Tab quando na última opção
+        if (key === 'Tab' && !e.shiftKey && currentQuestion.type === 'radio') {
+            // Verifica se estamos no último item e não há modificador Shift
+            const lastOption = document.querySelector(`[name="${currentQuestion.id}"] + label:last-of-type`);
+            if (document.activeElement === lastOption) {
+                e.preventDefault();
+                handleNext();
+            }
+        }
+        
+        // Enter/Space nos botões de opção para selecionar (para acessibilidade)
+        if ((key === 'Enter' || key === ' ') && 
+            currentQuestion.type === 'radio' && 
+            (e.target as HTMLElement).hasAttribute('data-option-value')) {
+            e.preventDefault();
+            const optionValue = (e.target as HTMLElement).getAttribute('data-option-value') || '';
+            handleRadioCardClick(currentQuestion.id, optionValue);
+        }
+        
+        // Setas para navegar entre perguntas
+        if (!isSubmitting) {
+            if (key === 'ArrowRight' && currentQuestionIdx < totalQuizQuestions - 1) {
+                if (canProceedToNextQuestion()) {
+                    handleNext();
+                }
+            } else if (key === 'ArrowLeft' && currentQuestionIdx > 0) {
+                handleBack();
+            }
+        }
+        
+        logQuizAction('key_navigation', { key, currentQuestionIdx });
+    }, [currentQuestionIdx, isSubmitting, totalQuizQuestions]);
+    
+    // Verifica se pode ir para a próxima pergunta
+    const canProceedToNextQuestion = useCallback(() => {
+        const currentQuestion = quizQuestionsConfig[currentQuestionIdx];
+        const value = formData[currentQuestion.id];
+        const isRequired = currentQuestion.required && 
+            (typeof currentQuestion.required === 'boolean' ? 
+                currentQuestion.required : 
+                currentQuestion.required(formData));
+        
+        // Se não for obrigatório ou tiver valor, pode avançar
+        return !isRequired || (value && value.trim() !== '');
+    }, [currentQuestionIdx, formData]);
+    
+    // Avança para a próxima pergunta, pulando condicionais
+    const handleNext = useCallback(() => {
+        // Validar o campo atual antes de avançar
+        const currentQuestion = quizQuestionsConfig[currentQuestionIdx];
+        const currentValue = formData[currentQuestion.id] || '';
+        const validationError = validateField(currentQuestion.id, currentValue, formData);
+        
+        if (validationError) {
+            setErrors(prev => ({ ...prev, [currentQuestion.id]: validationError }));
+            setTouchedFields(prev => ({ ...prev, [currentQuestion.id]: true }));
+            logQuizAction('validation_error_on_next', { 
+                questionId: currentQuestion.id, 
+                error: validationError 
+            });
+            return;
+        }
+        
+        // Procurar a próxima pergunta visível, pulando as condicionais
+        const { nextVisibleIndex, skippedQuestionIds } = getNextQuestionDetails(
+            currentQuestionIdx + 1, 
+            1, 
+            formData, 
+            quizQuestionsConfig
+        );
+        
+        if (nextVisibleIndex < totalQuizQuestions) {
+            setCurrentQuestionIdx(nextVisibleIndex);
+            setAnimationDirection(1);
+            
+            // Limpa erros para as perguntas puladas
+            if (skippedQuestionIds.length > 0) {
+                const errorsCopy = { ...errors };
+                skippedQuestionIds.forEach(id => {
+                    delete errorsCopy[id];
+                });
+                setErrors(errorsCopy);
+            }
+            
+            logQuizAction('navigation_next', { 
+                from: currentQuestionIdx, 
+                to: nextVisibleIndex, 
+                skipped: skippedQuestionIds 
+            });
+        } else if (nextVisibleIndex === totalQuizQuestions) {
+            // Se é a última pergunta, submeter o formulário
+            handleSubmit();
+        }
+    }, [currentQuestionIdx, formData, errors, validateField]);
+    
+    // Volta para a pergunta anterior, pulando condicionais
+    const handleBack = useCallback(() => {
+        if (currentQuestionIdx === 0) return;
+        
+        // Procurar a pergunta anterior visível
+        const { nextVisibleIndex } = getNextQuestionDetails(
+            currentQuestionIdx - 1, 
+            -1, 
+            formData, 
+            quizQuestionsConfig
+        );
+        
+        if (nextVisibleIndex >= 0) {
+            setCurrentQuestionIdx(nextVisibleIndex);
+            setAnimationDirection(-1);
+            
+            logQuizAction('navigation_back', { 
+                from: currentQuestionIdx, 
+                to: nextVisibleIndex 
+            });
+        }
+    }, [currentQuestionIdx, formData]);
+    
+    // --- VALIDAÇÃO ---
+    const validateField = useCallback((fieldName: keyof QuizFormData, value: string, currentDataForValidation: QuizFormData): string => {
+        const fieldConfig = quizQuestionsConfig.find(q => q.id === fieldName);
+        if (!fieldConfig) return "";
+        
+        const shouldActuallyDisplay = fieldConfig.conditionalDisplay 
+            ? fieldConfig.conditionalDisplay(currentDataForValidation) 
+            : true;
+            
+        const isActuallyRequired = fieldConfig.required && 
+            (typeof fieldConfig.required === 'boolean' ? fieldConfig.required : fieldConfig.required(currentDataForValidation));
+        
+        let err = "";
+        
+        if (shouldActuallyDisplay && isActuallyRequired && !value.trim()) {
+            err = "Este campo é obrigatório.";
+        } else if (value.trim().length > 0) {
+            if (fieldName === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) { 
+                err = "Formato de e-mail inválido.";
+            } else if (fieldName === "whatsapp") { 
+                const cleaned = value.replace(/\D/g, ''); 
+                if (cleaned.length < 10 || cleaned.length > 11 || !/^[1-9]{2}9?[0-9]{8}$/.test(cleaned)) { 
+                    err = "Telefone inválido."; 
+                } 
+            } else if (fieldName === "nomeCompleto" && value.trim().length < 3) {
+                err = "Nome completo min. 3 caracteres.";
+            } else if (fieldName === "nomeEmpresa" && value.trim().length < 2) {
+                err = "Nome da empresa muito curto.";
+            } else if (shouldActuallyDisplay && isActuallyRequired && 
+                    (fieldName === "outroSegmento" || fieldName === "outroCargo" || fieldName === "outroDesafio") && 
+                    value.trim().length < 3) {
+                err = "Especifique (mín. 3 caracteres).";
+            } else if (fieldName === 'site' && value.trim() && 
+                    !/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([/\w \.-]*)*\/?$/.test(value)) { 
+                err = 'URL do site inválida.';
+            } else if (fieldName === 'instagram' && value.trim() && 
+                    !/^@?([\w\.]{1,30})$/.test(value.startsWith('@') ? value.substring(1) : value)) { 
+                err = 'Usuário do Instagram inválido.';
+            }
+        }
+        
+        if (err) {
+            logQuizAction('validation_error', { fieldName, error: err, value });
+        }
+        
+        return err;
+    }, []);
+    
+    // Manipula clique nos cartões de opção de rádio
+    const handleRadioCardClick = useCallback((fieldName: keyof QuizFormData, optionValue: string) => {
+        // Atualiza o valor no formulário
+        setFormData(prev => {
+            const newData = { ...prev, [fieldName]: optionValue };
+            return newData;
+        });
+        
+        // Marca o campo como tocado
+        setTouchedFields(prev => ({ ...prev, [fieldName]: true }));
+        
+        // Limpa erro se existir
+        if (errors[fieldName]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[fieldName];
+                return newErrors;
+            });
+        }
+        
+        logQuizAction('option_selected', { fieldName, value: optionValue });
+        
+        // Avança automaticamente para a próxima pergunta após selecionar uma opção
+        setTimeout(() => {
+            if (currentQuestionIdx < totalQuizQuestions - 1) {
+                handleNext();
+            } else {
+                // Se for a última pergunta, submete automaticamente
+                handleSubmit();
+            }
+        }, 350); // Pequeno delay para feedback visual
+    }, [currentQuestionIdx, errors, totalQuizQuestions]);
+    
+    // Manipula mudanças em inputs e textareas
+    const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+        
+        // Limpa erro em tempo real se o valor for válido
+        if (errors[name as keyof QuizFormData]) {
+            const validationError = validateField(name as keyof QuizFormData, value, formData);
+            if (!validationError) {
+                setErrors(prev => {
+                    const newErrors = { ...prev };
+                    delete newErrors[name as keyof QuizFormData];
+                    return newErrors;
+                });
+            }
+        }
+    }, [formData, errors, validateField]);
+    
+    // Valida ao sair do campo
+    const handleBlur = useCallback((e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        const fieldName = name as keyof QuizFormData;
+        
+        // Marca como tocado
+        setTouchedFields(prev => ({ ...prev, [fieldName]: true }));
+        
+        // Valida
+        const validationError = validateField(fieldName, value, formData);
+        if (validationError) {
+            setErrors(prev => ({ ...prev, [fieldName]: validationError }));
+            logQuizAction('validation_error_on_blur', { fieldName, error: validationError });
+        } else if (errors[fieldName]) {
+            // Remove erro se estava inválido e agora está válido
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[fieldName];
+                return newErrors;
+            });
+        }
+    }, [formData, errors, validateField]);
+    
+    // Submissão do formulário
+    const handleSubmit = useCallback(async (e?: FormEvent<HTMLFormElement>, dataForSubmission?: QuizFormData) => {
+        if (e) e.preventDefault();
+        const dataToSubmit = dataForSubmission || formData;
+        
+        logQuizAction('submit_attempt', { formData: dataToSubmit });
+        
+        // Validação final de todos os campos
+        let hasErrors = false;
+        const newErrors: Partial<QuizFormData> = {};
+        const newTouched: Record<keyof QuizFormData, boolean> = {} as Record<keyof QuizFormData, boolean>;
+        
+        // Validar apenas campos que deveriam ser exibidos com base em condições
+        quizQuestionsConfig.forEach(question => {
+            const shouldDisplay = !question.conditionalDisplay || question.conditionalDisplay(dataToSubmit);
+            if (shouldDisplay) {
+                const isRequired = question.required && 
+                (typeof question.required === 'boolean' ? question.required : question.required(dataToSubmit));
+                
+                if (isRequired && (!dataToSubmit[question.id] || dataToSubmit[question.id].trim() === '')) {
+                    newErrors[question.id] = `Este campo é obrigatório`;
+                    newTouched[question.id] = true;
+                    hasErrors = true;
+                } else {
+                    const error = validateField(question.id, dataToSubmit[question.id], dataToSubmit);
+                    if (error) {
+                        newErrors[question.id] = error;
+                        newTouched[question.id] = true;
+                        hasErrors = true;
+                    }
+                }
+            }
+        });
+        
+        if (hasErrors) {
+            setErrors(newErrors);
+            setTouchedFields(prev => ({...prev, ...newTouched}));
+            
+            // Encontrar o primeiro campo com erro e navegar até ele
+            const firstErrorIndex = quizQuestionsConfig.findIndex(q => newErrors[q.id]);
+            if (firstErrorIndex !== -1 && firstErrorIndex !== currentQuestionIdx) {
+                setCurrentQuestionIdx(firstErrorIndex);
+                setAnimationDirection(firstErrorIndex < currentQuestionIdx ? -1 : 1);
+            }
+            
+            logQuizAction('submit_validation_failed', { errors: newErrors });
+            return;
+        }
+        
+        // Se chegou aqui, não há erros
+        setIsSubmitting(true);
+        setSubmitStatus('submitting');
+        
+        try {
+            logQuizAction('submitting_to_api');
+            const response = await onSubmitQuiz(dataToSubmit);
+            
+            logQuizAction('submit_success', { response });
+            setSubmitStatus('success');
+            
+            if (onQuizComplete) onQuizComplete(response);
+        } catch (error) {
+            logQuizAction('submit_error', { error });
+            console.error('Erro ao enviar quiz:', error);
+            setSubmitStatus('error');
+            setIsSubmitting(false);
+        }
+    }, [formData, currentQuestionIdx, validateField]);
+    
+    // Estados de feedback para o usuário
+    if (submitStatus === 'submitting') { 
+        return (
+            <div 
+                className="flex flex-col items-center justify-center text-center p-10 h-[600px]"
+                role="status"
+                aria-live="polite"
+            >
+                <ArrowPathIcon className="w-12 h-12 text-blue-600 animate-spin mb-4" aria-hidden="true"/> 
+                <p className="text-lg text-slate-700 font-semibold">Enviando...</p>
+            </div>
+        ); 
+    }
+    
+    if (submitStatus === 'error') { 
+        return (
+            <div 
+                className="flex flex-col items-center justify-center text-center p-10 h-[600px]"
+                role="alert"
+                aria-live="assertive"
+            >
+                <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mb-4" aria-hidden="true"/> 
+                <p className="text-xl text-slate-800 font-semibold">Ops! Algo deu errado.</p> 
+                <button 
+                    onClick={() => { setSubmitStatus(null); setIsSubmitting(false); }}
+                    className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    aria-label="Tentar novamente"
+                >
+                    Tentar Novamente
+                </button>
+            </div>
+        ); 
+    }
+    
+    // Configuração da pergunta atual
+    const currentQuestionConfig = quizQuestionsConfig[currentQuestionIdx];
+    const isRequired = currentQuestionConfig.required && 
+        (typeof currentQuestionConfig.required === 'boolean' ? 
+            currentQuestionConfig.required : 
+            currentQuestionConfig.required(formData));
+    
+    return (
+        <div 
+            ref={quizContainerRef}
+            className="w-full max-w-4xl mx-auto bg-white p-6 sm:p-10 rounded-2xl shadow-2xl border border-slate-100 flex flex-col" 
+            style={{height: 'clamp(700px, 92vh, 900px)'}}
+            onKeyDown={handleKeyNavigation}
+            role="form"
+            aria-labelledby="quiz-heading"
+        >
+            <div className="mb-8 md:mb-10">
+                <div className="flex items-center mb-4 justify-between">
+                    <h1 id="quiz-heading" className="text-2xl font-bold text-slate-900">Qualificação de Perfil</h1>
+                    <div className="text-sm text-slate-500 font-semibold">Pergunta {currentQuestionIdx + 1} de {totalQuizQuestions}</div>
+                </div>
+                <div className="relative w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+                    <motion.div 
+                        className="absolute h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" 
+                        initial={{ width: '0%'}} 
+                        animate={{ width: `${((currentQuestionIdx + 1) / totalQuizQuestions) * 100}%` }} 
+                        transition={{ type:"spring", stiffness: 100, damping: 20, duration: 0.6 }} 
+                    />
+                </div>
+            </div>
+            <AnimatePresence mode="wait" custom={animationDirection} initial={false}>
+                <motion.div 
+                    ref={currentQuestionRef}
+                    key={currentQuestionIdx} 
+                    custom={animationDirection} 
+                    variants={stepAnimationVariants} 
+                    initial="enter" 
+                    animate="center" 
+                    exit="exit" 
+                    className="flex flex-col flex-grow justify-between items-center w-full min-h-0"
+                    tabIndex={-1}
+                >
+                    <div className="w-full flex flex-col items-center flex-grow mb-6 text-center overflow-y-auto py-6 px-2 custom-scrollbar">
+                        <motion.h2 
+                            key={`q-title-${currentQuestionIdx}`} 
+                            initial={{opacity:0, y:20}} 
+                            animate={{opacity:1,y:0}} 
+                            transition={{delay:0.1, duration:0.4, ease:"easeOut"}} 
+                            className="text-2xl sm:text-3xl md:text-4xl font-semibold text-slate-800 leading-tight mb-3"
+                        >
+                            {currentQuestionConfig.questionText} {isRequired && <span className="text-red-500 ml-1" aria-label="obrigatório">*</span>}
+                        </motion.h2>
+                        {currentQuestionConfig.subtitle && (
+                            <motion.p 
+                                key={`q-subtitle-${currentQuestionIdx}`} 
+                                initial={{opacity:0, y:15}} 
+                                animate={{opacity:1,y:0}} 
+                                transition={{delay:0.15, duration:0.4, ease:"easeOut"}} 
+                                className="text-slate-600 text-lg md:text-xl mb-8"
+                            >
+                                {currentQuestionConfig.subtitle} 
+                            </motion.p>
+                        )}
+                        <motion.div 
+                            className={`w-full max-w-2xl mt-2 ${currentQuestionConfig.type === 'radio' ? 'space-y-3 sm:space-y-4' : 'space-y-2'}`} 
+                            variants={staggerContainer(0.06, currentQuestionConfig.type === 'radio' ? 0.25 : 0.15)} 
+                            initial="hidden" 
+                            animate="visible"
+                        >
+                            {currentQuestionConfig.type === 'radio' && currentQuestionConfig.options && (
+                                <div className={`grid gap-3 sm:gap-4 pt-1 ${currentQuestionConfig.columnsForOptions === 3 ? 'grid-cols-1 sm:grid-cols-3' : currentQuestionConfig.columnsForOptions === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                                    {currentQuestionConfig.options.map(option => (
+                                        <motion.button 
+                                            type="button" 
+                                            key={option.value} 
+                                            onClick={() => handleRadioCardClick(currentQuestionConfig.id, option.value)}
+                                            className={`relative flex flex-col items-start sm:items-center text-left sm:text-center p-5 sm:p-6 rounded-xl border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${formData[currentQuestionConfig.id] === option.value ? 'border-blue-600 bg-blue-50/80 text-blue-900' : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:bg-slate-50/80'}`}
+                                            variants={itemFadeInUp}
+                                            aria-pressed={formData[currentQuestionConfig.id] === option.value}
+                                            aria-label={option.label}
+                                            data-option-value={option.value}
+                                        >
+                                            {formData[currentQuestionConfig.id] === option.value && (
+                                                <CheckCircleIconSolid className="absolute top-3 right-3 w-5 h-5 text-blue-600" aria-hidden="true"/>
+                                            )}
+                                            <span className="text-lg sm:text-xl font-medium mb-1">{option.label}</span>
+                                            {option.description && <span className="text-sm text-slate-500">{option.description}</span>}
+                                        </motion.button>
+                                    ))}
+                                </div>
+                            )}
+                            {(currentQuestionConfig.type === 'text' || currentQuestionConfig.type === 'email' || currentQuestionConfig.type === 'tel' || currentQuestionConfig.type === 'textarea') && (
+                                <motion.div variants={itemFadeInUp}>
+                                    {React.createElement(currentQuestionConfig.type === 'textarea' ? 'textarea' : 'input', { 
+                                        id: currentQuestionConfig.id, 
+                                        type: currentQuestionConfig.type === 'textarea' ? undefined : currentQuestionConfig.type, 
+                                        name: currentQuestionConfig.id, 
+                                        value: formData[currentQuestionConfig.id] || '', 
+                                        onChange: handleInputChange, 
+                                        onBlur: handleBlur, 
+                                        placeholder: currentQuestionConfig.placeholder, 
+                                        required: isRequired, 
+                                        className: `w-full px-5 py-4 border rounded-lg text-lg placeholder-slate-400 bg-white focus:bg-white transition-all duration-150 ease-in-out shadow-sm ${errors[currentQuestionConfig.id] && touchedFields[currentQuestionConfig.id] ? 'border-red-500 ring-1 ring-red-500 bg-red-50/30 focus:border-red-500 focus:ring-red-500' : 'border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 hover:border-slate-400'} ${currentQuestionConfig.type === 'textarea' ? 'min-h-[120px] py-3' : 'h-14'}`, 
+                                        rows: currentQuestionConfig.type === 'textarea' ? 4 : undefined,
+                                        'aria-invalid': errors[currentQuestionConfig.id] && touchedFields[currentQuestionConfig.id] ? 'true' : 'false',
+                                        'aria-describedby': errors[currentQuestionConfig.id] && touchedFields[currentQuestionConfig.id] ? `error-${currentQuestionConfig.id}` : undefined
+                                    })}
+                                </motion.div>
+                            )}
+                            {errors[currentQuestionConfig.id] && touchedFields[currentQuestionConfig.id] && (
+                                <p 
+                                    id={`error-${currentQuestionConfig.id}`}
+                                    className="text-sm text-red-600 mt-2 text-center flex items-center justify-center"
+                                    role="alert"
+                                >
+                                    <ExclamationTriangleIcon className="w-5 h-5 mr-1.5 text-red-500" aria-hidden="true" />
+                                    {errors[currentQuestionConfig.id]}
+                                </p>
+                            )}
+                        </motion.div>
+                    </div>
+                    <div className={`flex w-full max-w-2xl mx-auto pt-6 pb-2 mt-auto ${currentQuestionIdx === 0 ? 'justify-end' : 'justify-between'} items-center`}>
+                        {currentQuestionIdx > 0 && ( 
+                            <motion.button 
+                                type="button" 
+                                onClick={handleBack} 
+                                className="px-7 py-3 text-base font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all flex items-center gap-2.5 shadow-md hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600" 
+                                {...optionCardMotionProps}
+                                aria-label="Voltar para pergunta anterior"
+                            > 
+                                <ChevronLeftIconHero className="w-6 h-6" aria-hidden="true"/> 
+                                Voltar 
+                            </motion.button> 
+                        )}
+                        {currentQuestionConfig.type !== 'radio' && currentQuestionIdx < totalQuizQuestions - 1 && ( 
+                            <motion.button 
+                                type="button" 
+                                onClick={handleNext} 
+                                className="ml-auto px-7 py-3 text-base font-semibold bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl hover:opacity-90 transition-opacity shadow-lg hover:shadow-xl flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2" 
+                                {...optionCardMotionProps}
+                                aria-label="Ir para próxima pergunta"
+                            > 
+                                Próximo 
+                                <ChevronRightIconHero className="w-6 h-6" aria-hidden="true"/> 
+                            </motion.button> 
+                        )}
+                        {currentQuestionIdx === totalQuizQuestions - 1 && ( 
+                            <motion.button 
+                                type="button" 
+                                onClick={(e) => handleSubmit(e as any)} 
+                                disabled={isSubmitting} 
+                                className="ml-auto px-7 py-3 text-base font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center gap-2.5 disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2" 
+                                {...optionCardMotionProps}
+                                aria-label="Enviar respostas e ver diagnóstico"
+                            > 
+                                {isSubmitting ? 
+                                    <><ArrowPathIcon className="w-6 h-6 mr-2 animate-spin" aria-hidden="true"/> Processando...</> : 
+                                    <><PaperAirplaneIcon className="w-6 h-6 mr-2 -rotate-45 transform" aria-hidden="true"/> Ver Meu Diagnóstico</>
+                                } 
+                            </motion.button> 
+                        )}
+                    </div>
+                </motion.div>
+            </AnimatePresence>
+        </div>
+    );
+};
+
+export default QualificationQuiz;
