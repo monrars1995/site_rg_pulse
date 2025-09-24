@@ -2,6 +2,9 @@
 const express = require('express');
 const cors = require('cors');
 
+// Configurar dotenv para carregar variáveis de ambiente
+require('dotenv').config();
+
 // Importar todos os controladores e serviços
 const BlogController = require('../server/BlogController');
 const AdminController = require('../server/AdminController');
@@ -12,9 +15,10 @@ const diagnosticLeadsRoutes = require('../server/routes/diagnosticLeads');
 
 const app = express();
 
-// Configuração CORS para Vercel
+// Configuração CORS para Vercel - Incluindo ambos os domínios
 const allowedOrigins = [
     'https://site-rg-pulse.vercel.app',
+    'https://site-rg-pulse-omega.vercel.app',
     'https://rgpulse.com.br',
     'https://front.rgpulse.com.br',
     'http://localhost:3000',
@@ -30,26 +34,55 @@ const corsOptions = {
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
+            console.log(`❌ CORS bloqueado para origem: ${origin}`);
             callback(new Error('Não permitido pelo CORS'));
         }
     },
-    credentials: true 
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Middleware para log de requisições
+app.use((req, res, next) => {
+    console.log(`📝 ${req.method} ${req.path} - Origin: ${req.get('origin') || 'N/A'}`);
+    next();
+});
+
+// Middleware para tratamento de erros global
+app.use((err, req, res, next) => {
+    console.error('❌ Erro na API:', err);
+    res.status(500).json({ 
+        error: 'Erro interno do servidor',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Algo deu errado'
+    });
+});
 
 // Health check - removido prefixo /api pois já está na rota
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'ok', 
         timestamp: new Date().toISOString(),
-        environment: 'vercel'
+        environment: 'vercel',
+        supabase_url: process.env.SUPABASE_URL ? 'configured' : 'missing',
+        supabase_key: process.env.SUPABASE_ANON_KEY ? 'configured' : 'missing'
     });
 });
 
 // Rotas do Blog - removido prefixo /api pois já está na rota
-app.get('/v1/blog/posts', BlogController.listPosts);
+app.get('/v1/blog/posts', async (req, res) => {
+    try {
+        console.log('🔍 Iniciando listagem de posts do blog');
+        await BlogController.listPosts(req, res);
+    } catch (error) {
+        console.error('❌ Erro na rota /v1/blog/posts:', error);
+        res.status(500).json({ error: 'Erro ao buscar posts do blog', details: error.message });
+    }
+});
+
 app.get('/v1/blog/posts/:slug', BlogController.getPost);
 app.get('/blog/posts', BlogController.listPosts);
 app.get('/blog/posts/:slug', BlogController.getPost);
@@ -99,6 +132,7 @@ app.post('/v1/admin/generate-single-post', supabaseAuthController.authenticateAd
 // Rotas de Agentes
 app.get('/v1/agents', async (req, res) => {
     try {
+        console.log('🔍 Buscando agentes disponíveis');
         const { createClient } = require('@supabase/supabase-js');
         const supabase = createClient(
             process.env.SUPABASE_URL,
@@ -111,13 +145,14 @@ app.get('/v1/agents', async (req, res) => {
             .eq('active', true);
 
         if (error) {
-            console.error('Erro ao buscar agentes:', error);
+            console.error('❌ Erro ao buscar agentes:', error);
             return res.status(500).json({ error: 'Erro interno do servidor' });
         }
 
+        console.log(`✅ Encontrados ${agents?.length || 0} agentes ativos`);
         res.json({ agents: agents || [] });
     } catch (error) {
-        console.error('Erro ao buscar agentes:', error);
+        console.error('❌ Erro ao buscar agentes:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
